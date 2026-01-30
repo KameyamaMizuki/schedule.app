@@ -1,0 +1,3223 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>管理ダッシュボード</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.js"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,sans-serif;background:#f5f5f5;-webkit-font-smoothing:antialiased;padding-bottom:80px}
+
+    /* ヘッダー（紫：スケジュール用） */
+    .header{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;padding:14px;text-align:center;transition:background 0.3s ease;position:relative}
+    .header h1{font-size:17px;margin-bottom:2px}
+    .header.pink{background:linear-gradient(135deg,#ff9a9e 0%,#fecfef 100%)}
+    .header.pink h1{text-shadow:1px 1px 2px rgba(0,0,0,0.1)}
+
+    /* タブ */
+    .tabs{display:flex;background:#fff;border-bottom:2px solid #dee2e6;overflow-x:auto;-webkit-overflow-scrolling:touch}
+    .tab{flex:0 0 auto;padding:10px 14px;text-align:center;cursor:pointer;font-weight:600;font-size:13px;color:#6c757d;border-bottom:3px solid transparent;white-space:nowrap;-webkit-tap-highlight-color:transparent}
+    .tab.active{color:#667eea;border-bottom-color:#667eea}
+    .tab.active.pink{color:#ff9a9e;border-bottom-color:#ff9a9e}
+    .content{display:none;padding:12px}
+    .content.active{display:block}
+
+    .week-selector{margin-bottom:12px;padding:10px;background:#fff;border-radius:6px}
+    .week-selector select{width:100%;padding:9px;font-size:14px;border:1px solid #dee2e6;border-radius:4px;background:#fff}
+    .finalized-schedule{background:#fff;padding:12px;border-radius:6px;margin-bottom:10px}
+    .finalized-schedule h3{font-size:14px;margin-bottom:10px;color:#495057;border-bottom:2px solid #667eea;padding-bottom:6px}
+
+    .week-status-box{background:#f8f9fa;padding:10px;border-radius:6px;margin-bottom:12px;font-size:13px;color:#495057;text-align:center;border-left:3px solid #667eea}
+    .input-links{display:grid;gap:10px}
+    .member-link{display:block;padding:12px;background:#fff;border-radius:6px;box-shadow:0 1px 2px rgba(0,0,0,.08);text-decoration:none;color:#495057}
+    .member-link:active{background:#667eea;color:#fff}
+    .member-link .name{font-weight:600;font-size:14px;text-align:center}
+
+    .summary-table{width:100%;border-collapse:collapse;background:#fff;margin-bottom:12px}
+    .summary-table th,.summary-table td{padding:6px;text-align:left;border:1px solid #dee2e6;font-size:12px}
+    .summary-table th{background:#f8f9fa;font-weight:600}
+    .summary-table td.available{background:#d4edda;color:#155724}
+    .summary-table td.unavailable{background:#f8d7da;color:#721c24}
+
+    /* 調整タブ */
+    .member-section{background:#fff;margin-bottom:16px;border-radius:8px;overflow:hidden}
+    .member-header{background:#f8f9fa;padding:12px 16px;font-weight:600;font-size:14px;color:#495057;border-bottom:2px solid #dee2e6;display:flex;justify-content:space-between;align-items:center}
+    .save-btn{background:#667eea;color:#fff;border:none;padding:6px 16px;border-radius:4px;font-size:12px;cursor:pointer}
+    .save-btn:disabled{background:#ccc}
+    .day-section{padding:12px 16px}
+    .day-title{font-weight:600;font-size:13px;color:#495057;margin-bottom:8px}
+    .slot-group{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+    .slot-checkbox{display:flex;align-items:center;padding:6px 10px;background:#f8f9fa;border-radius:4px;cursor:pointer;font-size:12px}
+    .slot-checkbox input{width:16px;height:16px;margin-right:6px;cursor:pointer}
+    .slot-checkbox input:checked + span{color:#667eea;font-weight:600}
+
+    .note-display{margin-top:6px;padding:8px;background:#fff3cd;border-left:3px solid #ffc107;font-size:12px;color:#856404}
+
+    .points-table{width:100%;border-collapse:collapse;margin-bottom:16px}
+    .points-table th,.points-table td{padding:10px;text-align:left;border:1px solid #dee2e6;font-size:13px}
+    .points-table th{background:#667eea;color:#fff;font-weight:600}
+
+    .loading{text-align:center;padding:40px 20px;color:#6c757d}
+    .error{background:#f8d7da;color:#721c24;padding:16px;margin:16px;border-radius:8px;font-size:14px}
+
+    /* 編集モーダル */
+    .modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:1000;overflow-y:auto}
+    .modal.active{display:block}
+    .modal-content{background:#fff;margin:20px auto;max-width:800px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.2)}
+    .modal-header{padding:20px;border-bottom:2px solid #dee2e6;display:flex;justify-content:space-between;align-items:center}
+    .modal-header h2{font-size:18px;color:#495057;margin:0}
+    .modal-close{background:none;border:none;font-size:24px;cursor:pointer;color:#6c757d;padding:0;width:32px;height:32px;display:flex;align-items:center;justify-content:center}
+    .modal-close:hover{background:#f8f9fa;border-radius:4px}
+    .modal-body{padding:20px;max-height:calc(100vh - 200px);overflow-y:auto}
+    .modal-footer{padding:16px 20px;border-top:1px solid #dee2e6;display:flex;gap:12px;justify-content:flex-end}
+    .modal-btn{padding:10px 20px;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;border:none}
+    .modal-btn-primary{background:#667eea;color:#fff}
+    .modal-btn-secondary{background:#6c757d;color:#fff}
+
+    /* 週選択モーダル */
+    .week-picker-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:1000;justify-content:center;align-items:center}
+    .week-picker-modal.active{display:flex}
+    .week-picker-content{background:#fff;padding:20px;border-radius:8px;min-width:300px;max-width:90%}
+    .week-picker-content h3{margin-bottom:12px;font-size:16px;color:#495057}
+    .week-picker-content p{margin-bottom:12px;font-size:13px;color:#6c757d}
+    .week-picker-content input[type="date"]{width:100%;padding:10px;font-size:14px;border:1px solid #dee2e6;border-radius:4px;margin-bottom:16px}
+    .week-picker-buttons{display:flex;gap:10px;justify-content:flex-end}
+    .week-picker-buttons button{padding:8px 16px;border-radius:4px;font-size:14px;cursor:pointer;border:none}
+    .week-picker-buttons .cancel-btn{background:#6c757d;color:#fff}
+    .week-picker-buttons .confirm-btn{background:#667eea;color:#fff}
+
+    /* 週選択・フィルターセクション */
+    .week-selector-section{display:flex;align-items:center;gap:10px;margin-bottom:15px;flex-wrap:wrap}
+    .period-change-btn{padding:6px 12px;background:#4CAF50;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px}
+    .filter-section{margin-bottom:15px}
+    .filter-section select{padding:8px;font-size:14px;border:1px solid #dee2e6;border-radius:4px;background:#fff}
+
+    /* ========== 犬の記録タブ用CSS ========== */
+    /* カレンダー */
+    .calendar-container{background:#fff;border-radius:8px;padding:16px;margin-bottom:16px}
+    .calendar-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+    .calendar-header h2{font-size:16px;color:#495057}
+    .calendar-nav{display:flex;gap:8px}
+    .calendar-nav button{background:#ff9a9e;color:#fff;border:none;padding:8px 12px;border-radius:4px;cursor:pointer;font-size:14px}
+    .calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+    .calendar-day-header{text-align:center;font-size:12px;color:#6c757d;padding:8px 0;font-weight:600}
+    .calendar-day{text-align:center;padding:10px 4px;border-radius:6px;cursor:pointer;font-size:14px;min-height:44px;display:flex;align-items:center;justify-content:center}
+    .calendar-day:hover{background:#f8f9fa}
+    .calendar-day.other-month{color:#ccc}
+    .calendar-day.today{background:#fff3cd;font-weight:600}
+    .calendar-day.selected{background:#ff9a9e;color:#fff}
+    .calendar-day.has-record{position:relative}
+    .calendar-day.has-record::after{content:'';position:absolute;bottom:4px;left:50%;transform:translateX(-50%);width:6px;height:6px;background:#ff9a9e;border-radius:50%}
+    .calendar-day.selected.has-record::after{background:#fff}
+
+    /* 記録フォーム */
+    .record-form{background:#fff;border-radius:8px;padding:16px;margin-bottom:16px}
+    .record-form h3{font-size:15px;color:#495057;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #ff9a9e}
+    .form-group{margin-bottom:16px}
+    .form-group label{display:block;font-size:13px;color:#495057;margin-bottom:6px;font-weight:600}
+    .form-group input,.form-group textarea,.form-group select{width:100%;padding:10px;border:1px solid #dee2e6;border-radius:6px;font-size:14px}
+    .form-group textarea{min-height:60px;resize:vertical}
+    .time-select{display:flex;gap:8px}
+    .time-select select{flex:1}
+    .submit-btn{width:100%;background:linear-gradient(135deg,#ff9a9e 0%,#fecfef 100%);color:#fff;border:none;padding:14px;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer}
+    .submit-btn:disabled{background:#ccc}
+
+    /* 記録一覧 */
+    .records-list{background:#fff;border-radius:8px;padding:16px}
+    .records-list h3{font-size:15px;color:#495057;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #ff9a9e}
+    .record-item{padding:12px;background:#f8f9fa;border-radius:6px;margin-bottom:8px;position:relative}
+    .record-item .time{font-weight:600;color:#ff9a9e;margin-bottom:4px}
+    .record-item .detail{font-size:13px;color:#495057;line-height:1.5}
+    .record-item .detail span{display:block;margin-bottom:2px}
+    .record-item .delete-btn{position:absolute;top:8px;right:8px;background:#dc3545;color:#fff;border:none;padding:4px 8px;border-radius:4px;font-size:11px;cursor:pointer}
+    .no-records{text-align:center;color:#6c757d;padding:20px}
+
+    /* 薬リストモーダル */
+    .med-table{width:100%;border-collapse:collapse}
+    .med-table th,.med-table td{padding:8px;text-align:center;border:1px solid #dee2e6;font-size:12px}
+    .med-table th{background:#f8f9fa}
+    .med-table td input[type="text"]{width:100%;padding:6px;border:1px solid #dee2e6;border-radius:4px;font-size:12px}
+    .med-table td input[type="checkbox"]{width:18px;height:18px}
+
+    /* 要約セクション */
+    .summary-section{background:#fff;border-radius:8px;padding:16px;margin-bottom:16px}
+    .summary-section h3{font-size:15px;color:#495057;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #ff9a9e}
+    .date-range-picker{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+    .date-range-picker input{flex:1;min-width:120px;padding:10px;border:1px solid #dee2e6;border-radius:6px}
+    .summary-btn{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;border:none;padding:12px 20px;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600}
+    .summary-result{margin-top:16px;padding:16px;background:#f8f9fa;border-radius:6px;white-space:pre-wrap;font-size:13px;line-height:1.6}
+    .summary-loading{text-align:center;padding:20px;color:#6c757d}
+
+    /* アクションボタン */
+    .action-buttons{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+    .action-btn{flex:1;min-width:140px;padding:12px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none;display:flex;align-items:center;justify-content:center;gap:6px}
+    .action-btn.med{background:#e3f2fd;color:#1976d2}
+    .action-btn.summary{background:#f3e5f5;color:#7b1fa2}
+
+    /* ハンバーガーボタン */
+    .hamburger{position:absolute;left:14px;top:50%;transform:translateY(-50%);background:none;border:none;color:#fff;font-size:24px;cursor:pointer;padding:4px 8px}
+
+    /* ホームボタン（右上） */
+    .home-btn{position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;color:#fff;font-size:20px;cursor:pointer;padding:4px 8px}
+
+    /* ホームタブ用ヘッダー（グリーン系） */
+    .header.green{background:linear-gradient(135deg,#81c784 0%,#aed581 100%)}
+    .header.green h1{text-shadow:1px 1px 2px rgba(0,0,0,0.1)}
+    .tab.active.green{color:#81c784;border-bottom-color:#81c784}
+
+    /* ========== ホームタブ用CSS ========== */
+    .home-container{display:flex;flex-direction:column;align-items:center;padding:20px;max-width:400px;margin:0 auto}
+    .dog-area{position:relative;margin-bottom:10px}
+    .dog-image{width:280px;height:280px;border-radius:50%;object-fit:cover;border:4px solid #fff;box-shadow:0 4px 12px rgba(0,0,0,0.15);animation:swing 2s ease-in-out infinite;transition:opacity 0.5s ease}
+    .dog-image.fade-out{opacity:0}
+    @keyframes swing{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}
+    .speech-bubble{position:relative;background:#fff;border-radius:16px;padding:16px 20px;margin-top:15px;box-shadow:0 2px 8px rgba(0,0,0,0.1);max-width:300px;text-align:center;transition:opacity 0.5s ease}
+    .speech-bubble::before{content:'';position:absolute;top:-10px;left:50%;transform:translateX(-50%);border-left:10px solid transparent;border-right:10px solid transparent;border-bottom:10px solid #fff}
+    .speech-bubble p{font-size:15px;line-height:1.6;color:#333;font-weight:500}
+    .speech-bubble .highlight{color:#43a047;font-weight:700}
+    .speech-bubble.fade-out{opacity:0}
+    .menu-buttons{display:flex;flex-direction:column;gap:12px;width:100%;max-width:280px;margin-top:20px}
+    .menu-btn{display:flex;align-items:center;justify-content:flex-start;padding:14px 20px;background:#fff;border:none;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08);cursor:pointer;font-size:15px;font-weight:600;color:#333;transition:all 0.2s ease}
+    .menu-btn:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,0.12)}
+    .menu-btn:active{transform:translateY(0)}
+    .menu-btn .icon{font-size:20px;margin-right:12px}
+    .menu-btn.record{border-left:4px solid #ff9a9e}
+    .menu-btn.schedule{border-left:4px solid #667eea}
+    .menu-btn.chirol-info{border-left:4px solid #8d6e63}
+    .progress-container{display:none;width:100%;max-width:280px;margin-top:20px}
+    .progress-container.active{display:block}
+    .progress-bar{height:8px;background:#e0e0e0;border-radius:4px;overflow:hidden}
+    .progress-bar-inner{height:100%;background:linear-gradient(90deg,#81c784,#aed581);border-radius:4px;animation:progress 3s ease-in-out}
+    @keyframes progress{0%{width:0%}100%{width:100%}}
+    .progress-text{text-align:center;font-size:13px;color:#666;margin-top:8px}
+    .input-area{display:none;width:100%;max-width:300px;margin-top:15px}
+    .input-area.active{display:block}
+    .input-area .form-group{margin-bottom:12px}
+    .input-area label{display:block;font-size:13px;color:#666;margin-bottom:6px;font-weight:600}
+    .input-area input,.input-area textarea,.input-area select{width:100%;padding:12px;border:2px solid #e0e0e0;border-radius:8px;font-size:14px;transition:border-color 0.2s}
+    .input-area input:focus,.input-area textarea:focus,.input-area select:focus{outline:none;border-color:#81c784}
+    .input-area textarea{min-height:80px;resize:vertical}
+    .time-row{display:flex;gap:8px}
+    .time-row select{flex:1}
+    .home-submit{width:100%;padding:14px;background:linear-gradient(135deg,#81c784 0%,#aed581 100%);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;margin-top:8px}
+    .home-submit:disabled{background:#ccc;cursor:not-allowed}
+    .back-btn{width:100%;padding:12px;background:#fff;color:#666;border:2px solid #e0e0e0;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;margin-top:8px;transition:all 0.2s}
+    .back-btn:hover{background:#f5f5f5;border-color:#ccc}
+    .record-type-buttons{display:flex;gap:10px;margin-bottom:12px}
+    .record-type-btn{flex:1;display:flex;flex-direction:column;align-items:center;padding:16px 12px;background:#fff;border:2px solid #e0e0e0;border-radius:12px;cursor:pointer;transition:all 0.2s}
+    .record-type-btn:hover{border-color:#81c784;background:#f1f8e9}
+    .record-type-btn .icon{font-size:24px;margin-bottom:6px}
+    .record-type-btn span:last-child{font-size:13px;font-weight:600;color:#333}
+    .choice-buttons{display:none;flex-direction:column;gap:10px;width:100%;max-width:280px;margin-top:15px}
+    .choice-buttons.active{display:flex}
+    .choice-btn{padding:12px 20px;background:#fff;border:2px solid #e0e0e0;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;transition:all 0.2s}
+    .choice-btn:hover{border-color:#81c784;background:#f1f8e9}
+    .choice-btn.primary{background:linear-gradient(135deg,#81c784 0%,#aed581 100%);color:#fff;border:none}
+    .calendar-area{display:none;width:100%;max-width:300px;margin-top:15px;background:#fff;border-radius:12px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,0.08)}
+    .calendar-area.active{display:block}
+    .calendar-area .calendar-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+    .calendar-area .calendar-header h3{font-size:14px;color:#333}
+    .calendar-nav-btn{background:#81c784;color:#fff;border:none;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:14px}
+    .calendar-confirm-btn{width:100%;padding:12px;background:linear-gradient(135deg,#81c784 0%,#aed581 100%);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;margin-top:12px}
+    .schedule-display{display:none;width:100%;max-width:300px;margin-top:15px;background:#fff;border-radius:12px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,0.08)}
+    .schedule-display.active{display:block}
+    .schedule-display h4{font-size:14px;color:#333;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #81c784}
+    .schedule-display .schedule-table{width:100%;border-collapse:collapse;font-size:12px}
+    .schedule-display .schedule-table th,.schedule-display .schedule-table td{padding:8px 4px;text-align:center;border:1px solid #e0e0e0}
+    .schedule-display .schedule-table th{background:#f5f5f5;font-weight:600}
+    .schedule-display .schedule-table td.available{background:#e8f5e9;color:#2e7d32}
+    .schedule-display .schedule-table td.unavailable{background:#ffebee;color:#c62828}
+    .schedule-edit{display:none;width:100%;max-width:300px;margin-top:15px}
+    .schedule-edit.active{display:block}
+    .home-slot-group{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+    .home-slot-checkbox{display:flex;align-items:center;padding:8px 12px;background:#f5f5f5;border-radius:6px;cursor:pointer;font-size:13px}
+    .home-slot-checkbox input{width:18px;height:18px;margin-right:6px}
+    .home-slot-checkbox input:checked + span{color:#43a047;font-weight:600}
+
+    /* サイドバー */
+    .sidebar{position:fixed;top:0;left:-280px;width:280px;height:100%;background:#fff;z-index:2000;transition:left 0.3s ease;box-shadow:2px 0 8px rgba(0,0,0,.1)}
+    .sidebar.active{left:0}
+    .sidebar-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:1999}
+    .sidebar-overlay.active{display:block}
+    .sidebar-header{padding:20px;border-bottom:1px solid #dee2e6;display:flex;justify-content:space-between;align-items:center}
+    .sidebar-header h2{font-size:18px;color:#495057;margin:0}
+    .sidebar-close{background:none;border:none;font-size:28px;cursor:pointer;color:#6c757d}
+    .sidebar-nav{padding:16px 0}
+    .nav-item{padding:14px 20px;font-size:15px;color:#495057;cursor:pointer;font-weight:600}
+    .nav-item:hover{background:#f8f9fa}
+    .nav-item.has-submenu{display:flex;justify-content:space-between;align-items:center}
+    .nav-item .arrow{font-size:12px;transition:transform 0.2s}
+    .nav-item.open .arrow{transform:rotate(180deg)}
+    .submenu{display:none;background:#f8f9fa}
+    .submenu.active{display:block}
+    .nav-subitem{padding:12px 20px 12px 36px;font-size:14px;color:#6c757d;cursor:pointer}
+    .nav-subitem:hover{background:#e9ecef;color:#495057}
+
+    /* 知ってるチロル用CSS */
+    .chirol-choice-area{display:none;width:100%;max-width:280px;margin-top:15px}
+    .chirol-choice-area.active{display:flex;flex-direction:column;gap:12px}
+    .chirol-choice-btn{display:flex;align-items:center;padding:16px 20px;background:#fff;border:2px solid #e0e0e0;border-radius:12px;cursor:pointer;font-size:15px;font-weight:600;color:#333;transition:all 0.2s}
+    .chirol-choice-btn:hover{border-color:#8d6e63;background:#efebe9}
+    .chirol-choice-btn .icon{font-size:24px;margin-right:12px}
+    .chirol-choice-btn.cancel{border-color:#ffcdd2;color:#c62828}
+    .chirol-choice-btn.cancel:hover{background:#ffebee}
+
+    .chirol-hitokoto-area{display:none;width:100%;max-width:300px;margin-top:15px}
+    .chirol-hitokoto-area.active{display:block}
+    .chirol-hitokoto-area textarea{width:100%;padding:14px;border:2px solid #e0e0e0;border-radius:12px;font-size:15px;min-height:100px;resize:vertical;transition:border-color 0.2s}
+    .chirol-hitokoto-area textarea:focus{outline:none;border-color:#8d6e63}
+    .chirol-hitokoto-area .char-count{text-align:right;font-size:12px;color:#999;margin-top:4px}
+
+    .chirol-image-area{display:none;width:100%;max-width:300px;margin-top:15px}
+    .chirol-image-area.active{display:block}
+    .image-preview-container{position:relative;width:200px;height:200px;margin:0 auto 16px;border:2px dashed #e0e0e0;border-radius:12px;overflow:hidden;cursor:pointer;transition:all 0.2s}
+    .image-preview-container:hover{border-color:#8d6e63;background:#f5f5f5}
+    .image-preview-container.has-image{border-style:solid;border-color:#8d6e63}
+    .image-preview{width:100%;height:100%;object-fit:cover;display:none}
+    .image-preview.active{display:block}
+    .image-placeholder{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;color:#999}
+    .image-placeholder .icon{font-size:48px;margin-bottom:8px}
+    .image-placeholder span{font-size:13px;display:block}
+    .image-preview-container.has-image .image-placeholder{display:none}
+    .tag-selector{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;justify-content:center}
+    .tag-btn{padding:10px 16px;background:#f5f5f5;border:2px solid #e0e0e0;border-radius:20px;font-size:13px;cursor:pointer;transition:all 0.2s}
+    .tag-btn:hover{border-color:#8d6e63}
+    .tag-btn.selected{background:#8d6e63;color:#fff;border-color:#8d6e63}
+
+    /* 画像切り抜きモーダル */
+    .crop-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.9);z-index:3000;flex-direction:column}
+    .crop-modal.active{display:flex}
+    .crop-header{padding:16px;color:#fff;display:flex;justify-content:space-between;align-items:center}
+    .crop-header h3{margin:0;font-size:16px}
+    .crop-close{background:none;border:none;color:#fff;font-size:28px;cursor:pointer}
+    .crop-container{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
+    .crop-image{max-width:100%;max-height:100%;object-fit:contain}
+    .crop-overlay{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none}
+    .crop-box{position:absolute;border:2px solid #fff;box-shadow:0 0 0 9999px rgba(0,0,0,0.5);cursor:move}
+    .crop-footer{padding:16px;display:flex;gap:12px;justify-content:center}
+    .crop-btn{padding:12px 24px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;border:none}
+    .crop-btn.cancel{background:#666;color:#fff}
+    .crop-btn.confirm{background:#8d6e63;color:#fff}
+  </style>
+</head>
+<body>
+  <div class="header" id="mainHeader">
+    <button class="hamburger" onclick="toggleSidebar()">☰</button>
+    <h1 id="headerTitle">スケジュール管理</h1>
+    <button class="home-btn" onclick="switchTab('home')"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="#fff"><path d="M12 3L2 12h3v9h6v-6h2v6h6v-9h3L12 3z"/></svg></button>
+  </div>
+
+  <!-- サイドバー -->
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <h2>メニュー</h2>
+      <button class="sidebar-close" onclick="toggleSidebar()">×</button>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-item" onclick="goToHome()">ホーム</div>
+
+      <div class="nav-group">
+        <div class="nav-item has-submenu" onclick="toggleSubmenu('schedule')">
+          スケジュール管理 <span class="arrow">▼</span>
+        </div>
+        <div class="submenu" id="schedule-submenu">
+          <div class="nav-subitem" onclick="navigateTo('thisWeek')">今週の予定</div>
+          <div class="nav-subitem" onclick="navigateTo('nextWeek')">来週の予定</div>
+          <div class="nav-subitem" onclick="navigateTo('adjust')">入力</div>
+          <div class="nav-subitem" onclick="navigateTo('cumulative')">累計</div>
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-item has-submenu" onclick="toggleSubmenu('records')">
+          様子の記録 <span class="arrow">▼</span>
+        </div>
+        <div class="submenu" id="records-submenu">
+          <div class="nav-subitem" onclick="navigateTo('dogRecord')">記録する</div>
+          <div class="nav-subitem" onclick="navigateTo('dogHistory')">履歴</div>
+        </div>
+      </div>
+    </nav>
+  </div>
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+  <div class="tabs">
+    <div class="tab active green" onclick="switchTab('home')">ホーム</div>
+    <div class="tab" onclick="switchTab('thisWeek')">今週の予定</div>
+    <div class="tab" onclick="switchTab('nextWeek')">来週の予定</div>
+    <div class="tab" onclick="switchTab('adjust')">入力</div>
+    <div class="tab" onclick="switchTab('cumulative')">累計</div>
+    <div class="tab" onclick="switchTab('dogRecord')">記録する</div>
+    <div class="tab" onclick="switchTab('dogHistory')">履歴</div>
+  </div>
+
+  <!-- ホームタブ -->
+  <div id="homeContent" class="content active">
+    <div class="home-container">
+      <!-- 犬の画像 -->
+      <div class="dog-area">
+        <img id="homeDogImage" class="dog-image" src="images/dog/normal/IMG_3707.webp" alt="犬" onclick="homeDogTapped()" style="cursor:pointer">
+      </div>
+
+      <!-- 吹き出し -->
+      <div id="homeSpeechBubble" class="speech-bubble">
+        <p id="homeSpeechText">今日は <span class="highlight" id="homeTodayDate">-</span> ！<br>担当は <span class="highlight" id="homeTodayPerson">-</span>だぜ！</p>
+      </div>
+
+      <!-- プログレスバー -->
+      <div id="homeProgressContainer" class="progress-container">
+        <div class="progress-bar">
+          <div class="progress-bar-inner"></div>
+        </div>
+        <p class="progress-text">ちょっと待ってくれ...</p>
+      </div>
+
+      <!-- メニューボタン -->
+      <div id="homeMenuButtons" class="menu-buttons">
+        <button class="menu-btn record" onclick="homeStartRecord()">
+          <span class="icon">📝</span>
+          <span>様子を記録する</span>
+        </button>
+        <button class="menu-btn schedule" onclick="homeStartSchedule()">
+          <span class="icon">📅</span>
+          <span>スケジュールを確認</span>
+        </button>
+        <button class="menu-btn chirol-info" onclick="homeStartChirolInfo()">
+          <span class="icon">🐕‍🦺</span>
+          <span>知ってるチロル</span>
+        </button>
+      </div>
+
+      <!-- 記録タイプ選択エリア -->
+      <div id="homeRecordTypeSelect" class="input-area">
+        <div class="record-type-buttons">
+          <button class="record-type-btn" onclick="homeSelectRecordType('condition')">
+            <span class="icon">🐕</span>
+            <span>様子</span>
+          </button>
+          <button class="record-type-btn" onclick="homeSelectRecordType('meal')">
+            <span class="icon">🍚</span>
+            <span>食事</span>
+          </button>
+          <button class="record-type-btn" onclick="homeSelectRecordType('toilet')">
+            <span class="icon">🚽</span>
+            <span>トイレ</span>
+          </button>
+        </div>
+        <button class="back-btn" onclick="homeBackToMenu()">戻る</button>
+      </div>
+
+      <!-- 記録入力エリア -->
+      <div id="homeRecordInput" class="input-area">
+        <div class="form-group">
+          <label>時間</label>
+          <div class="time-row">
+            <select id="homeRecordHour"></select>
+            <select id="homeRecordMinute"></select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label id="homeRecordInputLabel">様子</label>
+          <textarea id="homeRecordText" placeholder="入力してくれ..."></textarea>
+        </div>
+        <button class="submit-btn home-submit" onclick="homeSubmitRecord()">記録する</button>
+        <button class="back-btn" onclick="homeBackToRecordType()">戻る</button>
+      </div>
+
+      <!-- 選択肢ボタン -->
+      <div id="homeChoiceButtons" class="choice-buttons">
+      </div>
+
+      <!-- カレンダー選択エリア -->
+      <div id="homeCalendarArea" class="calendar-area">
+        <div class="calendar-header">
+          <button class="calendar-nav-btn" onclick="homeChangeCalendarMonth(-1)">◀</button>
+          <h3 id="homeCalendarTitle">2024年1月</h3>
+          <button class="calendar-nav-btn" onclick="homeChangeCalendarMonth(1)">▶</button>
+        </div>
+        <div class="calendar-grid" id="homeCalendarGrid"></div>
+        <button class="calendar-confirm-btn" onclick="homeConfirmCalendarSelection()">この日を確認する</button>
+        <button class="back-btn" onclick="homeBackToMenu()">戻る</button>
+      </div>
+
+      <!-- スケジュール表示エリア -->
+      <div id="homeScheduleDisplay" class="schedule-display">
+        <h4 id="homeScheduleTitle">予定</h4>
+        <div id="homeScheduleContent"></div>
+      </div>
+
+      <!-- スケジュール編集エリア -->
+      <div id="homeScheduleEdit" class="schedule-edit">
+        <div id="homeScheduleEditContent"></div>
+        <button class="submit-btn home-submit" onclick="homeSubmitScheduleEdit()">変更を保存する</button>
+        <button class="back-btn" onclick="homeBackToScheduleDisplay()">戻る</button>
+      </div>
+
+      <!-- 知ってるチロル選択エリア -->
+      <div id="chirolChoiceArea" class="chirol-choice-area">
+        <button class="chirol-choice-btn" onclick="chirolStartImage()">
+          <span class="icon">📷</span>
+          <span>写真を追加する</span>
+        </button>
+        <button class="chirol-choice-btn" onclick="chirolStartHitokoto()">
+          <span class="icon">💬</span>
+          <span>一言を追加する</span>
+        </button>
+        <button class="chirol-choice-btn cancel" onclick="chirolCancel()">
+          <span class="icon">🚫</span>
+          <span>やっぱやめる</span>
+        </button>
+      </div>
+
+      <!-- 一言入力エリア -->
+      <div id="chirolHitokotoArea" class="chirol-hitokoto-area">
+        <textarea id="chirolHitokotoText" placeholder="チロルの一言を入力..." maxlength="100"></textarea>
+        <div class="char-count"><span id="chirolHitokotoCount">0</span>/100</div>
+        <button class="submit-btn home-submit" onclick="chirolSubmitHitokoto()" style="background:linear-gradient(135deg,#8d6e63 0%,#a1887f 100%)">追加する</button>
+        <button class="back-btn" onclick="chirolBackToChoice()">戻る</button>
+      </div>
+
+      <!-- 画像追加エリア -->
+      <div id="chirolImageArea" class="chirol-image-area">
+        <input type="file" id="chirolImageInput" accept="image/*" style="display:none" onchange="chirolImageSelected(event)">
+        <div class="image-preview-container" onclick="document.getElementById('chirolImageInput').click()">
+          <img id="chirolImagePreview" class="image-preview" src="" alt="">
+          <div class="image-placeholder">
+            <div class="icon">📷</div>
+            <span>タップして写真を選択</span>
+          </div>
+        </div>
+        <div class="tag-selector">
+          <button class="tag-btn" data-tag="normal" onclick="chirolSelectTag('normal')">😊 normal</button>
+          <button class="tag-btn" data-tag="happy" onclick="chirolSelectTag('happy')">😄 happy</button>
+          <button class="tag-btn" data-tag="thinking" onclick="chirolSelectTag('thinking')">🤔 thinking</button>
+          <button class="tag-btn" data-tag="sad" onclick="chirolSelectTag('sad')">😢 sad</button>
+        </div>
+        <button class="submit-btn home-submit" id="chirolImageSubmitBtn" onclick="chirolSubmitImage()" style="background:linear-gradient(135deg,#8d6e63 0%,#a1887f 100%)" disabled>追加する</button>
+        <button class="back-btn" onclick="chirolBackToChoice()">戻る</button>
+      </div>
+    </div>
+
+    <!-- 画像切り抜きモーダル -->
+    <div id="cropModal" class="crop-modal">
+      <div class="crop-header">
+        <h3>正方形に切り抜き</h3>
+        <button class="crop-close" onclick="closeCropModal()">×</button>
+      </div>
+      <div class="crop-container">
+        <canvas id="cropCanvas"></canvas>
+      </div>
+      <div class="crop-footer">
+        <button class="crop-btn cancel" onclick="closeCropModal()">キャンセル</button>
+        <button class="crop-btn confirm" onclick="confirmCrop()">切り抜く</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- スケジュール系タブ -->
+  <div id="thisWeekContent" class="content">
+    <div class="loading">読み込み中...</div>
+  </div>
+
+  <div id="nextWeekContent" class="content">
+    <div class="loading">来週の予定を読み込み中...</div>
+  </div>
+
+  <div id="adjustContent" class="content">
+    <div class="loading">調整データを読み込み中...</div>
+  </div>
+
+  <div id="cumulativeContent" class="content">
+    <div class="loading">累計データを読み込み中...</div>
+  </div>
+
+  <!-- 犬の記録タブ -->
+  <div id="dogRecordContent" class="content">
+    <!-- カレンダー -->
+    <div class="calendar-container">
+      <div class="calendar-header">
+        <button onclick="changeDogMonth(-1)" style="background:#ff9a9e;color:#fff;border:none;padding:8px 12px;border-radius:4px;cursor:pointer">◀</button>
+        <h2 id="dogCalendarTitle">2024年1月</h2>
+        <button onclick="changeDogMonth(1)" style="background:#ff9a9e;color:#fff;border:none;padding:8px 12px;border-radius:4px;cursor:pointer">▶</button>
+      </div>
+      <div class="calendar-grid" id="dogCalendarGrid"></div>
+    </div>
+
+    <!-- アクションボタン -->
+    <div class="action-buttons">
+      <button class="action-btn med" onclick="openMedicationModal()">💊 薬リストを見る</button>
+      <button class="action-btn summary" onclick="switchTab('dogHistory');setTimeout(()=>document.getElementById('summarySection').scrollIntoView(),100)">📋 要約する</button>
+    </div>
+
+    <!-- 記録フォーム -->
+    <div class="record-form">
+      <h3 id="dogFormDate">記録を追加</h3>
+      <div class="form-group">
+        <label>時間</label>
+        <div class="time-select">
+          <select id="recordHour"></select>
+          <select id="recordMinute"></select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>様子</label>
+        <textarea id="recordCondition" placeholder="今日の様子を記録..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>食事</label>
+        <textarea id="recordMeal" placeholder="食事の内容を記録..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>トイレ</label>
+        <textarea id="recordToilet" placeholder="トイレの状況を記録..."></textarea>
+      </div>
+      <button class="submit-btn" onclick="saveDogRecord()">記録を保存</button>
+    </div>
+
+    <!-- 選択日の記録一覧 -->
+    <div class="records-list">
+      <h3 id="dogRecordsListTitle">この日の記録</h3>
+      <div id="dogRecordsList"></div>
+    </div>
+  </div>
+
+  <div id="dogHistoryContent" class="content">
+    <!-- 要約セクション -->
+    <div class="summary-section" id="summarySection">
+      <h3>📋 記録の要約（獣医さん用）</h3>
+      <div class="date-range-picker">
+        <input type="date" id="summaryStartDate">
+        <span style="align-self:center">〜</span>
+        <input type="date" id="summaryEndDate">
+      </div>
+      <button class="summary-btn" onclick="generateDogSummary()">AIで要約する</button>
+      <div id="summaryResult"></div>
+    </div>
+
+    <!-- 履歴カレンダー -->
+    <div class="calendar-container">
+      <div class="calendar-header">
+        <button onclick="changeDogHistoryMonth(-1)" style="background:#ff9a9e;color:#fff;border:none;padding:8px 12px;border-radius:4px;cursor:pointer">◀</button>
+        <h2 id="dogHistoryCalendarTitle">2024年1月</h2>
+        <button onclick="changeDogHistoryMonth(1)" style="background:#ff9a9e;color:#fff;border:none;padding:8px 12px;border-radius:4px;cursor:pointer">▶</button>
+      </div>
+      <div class="calendar-grid" id="dogHistoryCalendarGrid"></div>
+    </div>
+
+    <!-- 履歴一覧 -->
+    <div class="records-list">
+      <h3 id="dogHistoryListTitle">選択した日の記録</h3>
+      <div id="dogHistoryList"></div>
+    </div>
+  </div>
+
+  <!-- 週選択モーダル -->
+  <div id="weekPickerModal" class="week-picker-modal">
+    <div class="week-picker-content">
+      <h3>週を選択</h3>
+      <p>入力したい週の月曜日を選択してください</p>
+      <input type="date" id="weekPickerDate">
+      <div class="week-picker-buttons">
+        <button class="cancel-btn" onclick="closeWeekPicker()">キャンセル</button>
+        <button class="confirm-btn" onclick="confirmWeekSelection()">選択</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 編集モーダル -->
+  <div id="editModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="editModalTitle">スケジュール編集</h2>
+        <button class="modal-close" onclick="closeEditModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="editModalBody">
+        <div class="loading">読み込み中...</div>
+      </div>
+      <div class="modal-footer">
+        <button class="modal-btn modal-btn-secondary" onclick="closeEditModal()">キャンセル</button>
+        <button class="modal-btn modal-btn-primary" onclick="saveEditedSchedule()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 薬リストモーダル -->
+  <div id="medicationModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>💊 薬リスト</h2>
+        <button class="modal-close" onclick="closeMedicationModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="medicationBody">
+        <div class="summary-loading">読み込み中...</div>
+      </div>
+      <div class="modal-footer">
+        <button class="modal-btn modal-btn-secondary" onclick="closeMedicationModal()">閉じる</button>
+        <button class="modal-btn modal-btn-primary" onclick="saveMedications()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE_URL = 'https://aqmin18fa2.execute-api.ap-northeast-1.amazonaws.com/prod';
+    let thisWeekId = '';
+    let allSchedules = [];
+    let currentWeekInfo = {};
+    const familyMembers = [
+      {userId: 'U687f86855c46490c030499f5393c8a7e', displayName: '瑞季'},
+      {userId: 'U4b13048aa2906b929c3139c4f3dfdd7c', displayName: '才子'},
+      {userId: 'Ua8420309a164fffdbdd7f300f4c1cc94', displayName: '桃寧'}
+    ];
+
+    // 現在のタブ（ヘッダー色切り替え用）
+    let currentTab = 'thisWeek';
+
+    // サイドバー制御
+    function toggleSidebar() {
+      document.getElementById('sidebar').classList.toggle('active');
+      document.getElementById('sidebarOverlay').classList.toggle('active');
+    }
+
+    function toggleSubmenu(group) {
+      const submenu = document.getElementById(group + '-submenu');
+      const navItem = submenu.previousElementSibling;
+      submenu.classList.toggle('active');
+      navItem.classList.toggle('open');
+    }
+
+    function navigateTo(tab) {
+      toggleSidebar();
+      switchTab(tab);
+    }
+
+    function goToHome() {
+      toggleSidebar();
+      switchTab('home');
+    }
+
+    async function init() {
+      // ホームタブの初期化（デフォルトでactiveなので最初に実行）
+      const header = document.getElementById('mainHeader');
+      const headerTitle = document.getElementById('headerTitle');
+      header.classList.add('green');
+      headerTitle.textContent = 'ホーム';
+      initHomeTab();
+      window.homeLoaded = true;
+
+      const container = document.getElementById('thisWeekContent');
+      try {
+        container.innerHTML = '<div class="loading">読み込み中...</div>';
+        thisWeekId = getCalendarWeekId();
+        await renderThisWeek();
+      } catch (error) {
+        container.innerHTML = `<div class="error">エラー: ${error.message}</div>`;
+      }
+    }
+
+    function isAfterDeadline() {
+      return false;
+    }
+
+    function getCalendarWeekId() {
+      const now = new Date();
+      const jstNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
+      const day = jstNow.getDay();
+      const daysFromMonday = (day === 0) ? 6 : (day - 1);
+      const thisMonday = new Date(jstNow);
+      thisMonday.setDate(jstNow.getDate() - daysFromMonday);
+      return formatDateToWeekId(thisMonday);
+    }
+
+    function getNextWeekId() {
+      const now = new Date();
+      const jstNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
+      const day = jstNow.getDay();
+      const daysUntilNextMonday = (day === 0) ? 1 : (8 - day);
+      const nextMonday = new Date(jstNow);
+      nextMonday.setDate(jstNow.getDate() + daysUntilNextMonday);
+      return formatDateToWeekId(nextMonday);
+    }
+
+    function formatDateToWeekId(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    function getWeekId(date) {
+      const d = new Date(date);
+      const day = d.getDay();
+      const daysFromMonday = (day === 0) ? 6 : (day - 1);
+      const monday = new Date(d);
+      monday.setDate(d.getDate() - daysFromMonday);
+      return formatDateToWeekId(monday);
+    }
+
+    function formatDateForApi(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    function getWeekDateRange(weekId) {
+      const monday = new Date(weekId + 'T00:00:00+09:00');
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+      return { monday, sunday };
+    }
+
+    function updateWeekStatus() {
+      const startDate = new Date(currentWeekInfo.startDate);
+      const endDate = new Date(currentWeekInfo.endDate);
+      const deadline = new Date(currentWeekInfo.deadline);
+      const startStr = `${startDate.getMonth() + 1}/${startDate.getDate()}`;
+      const endStr = `${endDate.getMonth() + 1}/${endDate.getDate()}`;
+      const deadlineStr = `${deadline.getMonth() + 1}/${deadline.getDate()} ${deadline.getHours()}:${String(deadline.getMinutes()).padStart(2, '0')}`;
+
+      const statusText = currentWeekInfo.isLocked ? '集計済' : `集計中（締切 ${deadlineStr}）`;
+      window.weekStatusText = `${startStr}〜${endStr} ${statusText}`;
+    }
+
+    async function switchTab(tab) {
+      document.querySelectorAll('.tab').forEach(t => {
+        t.classList.remove('active');
+        t.classList.remove('pink');
+        t.classList.remove('green');
+      });
+      document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
+
+      currentTab = tab;
+
+      // タブのインデックスとコンテンツを決定
+      const tabNames = ['home', 'thisWeek', 'nextWeek', 'adjust', 'cumulative', 'dogRecord', 'dogHistory'];
+      const index = tabNames.indexOf(tab);
+      if (index !== -1) {
+        const tabEl = document.querySelectorAll('.tab')[index];
+        tabEl.classList.add('active');
+
+        // ホームタブはグリーン色
+        if (tab === 'home') {
+          tabEl.classList.add('green');
+        }
+        // 犬の記録タブはピンク色
+        if (tab === 'dogRecord' || tab === 'dogHistory') {
+          tabEl.classList.add('pink');
+        }
+      }
+
+      // コンテンツIDを決定
+      const contentIds = {
+        home: 'homeContent',
+        thisWeek: 'thisWeekContent',
+        nextWeek: 'nextWeekContent',
+        adjust: 'adjustContent',
+        cumulative: 'cumulativeContent',
+        dogRecord: 'dogRecordContent',
+        dogHistory: 'dogHistoryContent'
+      };
+      const contentEl = document.getElementById(contentIds[tab]);
+      if (contentEl) {
+        contentEl.classList.add('active');
+      }
+
+      // ヘッダーの色切り替え
+      const header = document.getElementById('mainHeader');
+      const headerTitle = document.getElementById('headerTitle');
+      header.classList.remove('pink', 'green');
+      if (tab === 'home') {
+        header.classList.add('green');
+        headerTitle.textContent = 'ホーム';
+      } else if (tab === 'dogRecord' || tab === 'dogHistory') {
+        header.classList.add('pink');
+        headerTitle.textContent = '様子の記録';
+      } else {
+        headerTitle.textContent = 'スケジュール管理';
+      }
+
+      // タブ切り替え時に遅延読み込み
+      if (tab === 'home' && !window.homeLoaded) {
+        initHomeTab();
+        window.homeLoaded = true;
+      } else if (tab === 'home') {
+        // ホームに戻る時は常にメニュー表示に戻す
+        homeBackToMenu();
+      }
+      if (tab === 'cumulative' && !window.cumulativeLoaded) {
+        await renderCumulative();
+        window.cumulativeLoaded = true;
+      } else if (tab === 'adjust' && !window.schedulesLoaded) {
+        selectedInputWeekId = getNextWeekId();
+        await loadAllSchedulesForWeek(selectedInputWeekId);
+        renderAdjust();
+        window.schedulesLoaded = true;
+      } else if (tab === 'nextWeek' && !window.nextWeekLoaded) {
+        await renderNextWeek();
+        window.nextWeekLoaded = true;
+      } else if (tab === 'dogRecord' && !window.dogRecordLoaded) {
+        initDogTimeSelectors();
+        await renderDogCalendar();
+        await loadDogRecordsForDate(dogSelectedDate);
+        window.dogRecordLoaded = true;
+      } else if (tab === 'dogHistory' && !window.dogHistoryLoaded) {
+        initDogSummaryDates();
+        await renderDogHistoryCalendar();
+        window.dogHistoryLoaded = true;
+      }
+    }
+
+    // ========== 今週の予定タブ ==========
+    let thisWeekSelectedWeekId = null;
+    let thisWeekEditMode = false;
+    let thisWeekSchedules = [];
+
+    async function renderThisWeek() {
+      const container = document.getElementById('thisWeekContent');
+
+      try {
+        if (!thisWeekSelectedWeekId) {
+          thisWeekSelectedWeekId = getCalendarWeekId();
+        }
+        const { monday, sunday } = getWeekDateRange(thisWeekSelectedWeekId);
+        const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+
+        let html = '<div class="week-selector-section">';
+        html += `<span style="font-weight:600;font-size:14px;color:#495057">表示週: ${monday.getFullYear()}/${String(monday.getMonth() + 1).padStart(2, '0')}/${String(monday.getDate()).padStart(2, '0')}(${dayNames[monday.getDay()]})〜${sunday.getFullYear()}/${String(sunday.getMonth() + 1).padStart(2, '0')}/${String(sunday.getDate()).padStart(2, '0')}(${dayNames[sunday.getDay()]})</span>`;
+        html += '<button class="period-change-btn" onclick="openThisWeekPicker()">期間変更</button>';
+        html += '<button id="thisWeekEditBtn" class="period-change-btn" style="background:#667eea;margin-left:6px" onclick="toggleThisWeekEditMode()">編集</button>';
+        html += '</div>';
+        html += '<div id="finalizedScheduleDisplay"></div>';
+
+        container.innerHTML = html;
+
+        await loadSelectedWeek();
+      } catch (error) {
+        console.error('Failed to render this week', error);
+        container.innerHTML = '<div class="error">スケジュールの読み込みに失敗しました</div>';
+      }
+    }
+
+    function openThisWeekPicker() {
+      weekPickerTarget = 'thisWeek';
+      document.getElementById('weekPickerModal').classList.add('active');
+      document.getElementById('weekPickerDate').value = thisWeekSelectedWeekId || getCalendarWeekId();
+    }
+
+    function toggleThisWeekEditMode() {
+      thisWeekEditMode = !thisWeekEditMode;
+      const btn = document.getElementById('thisWeekEditBtn');
+      if (btn) {
+        btn.textContent = thisWeekEditMode ? '編集中' : '編集';
+        btn.style.background = thisWeekEditMode ? '#dc3545' : '#667eea';
+      }
+      loadSelectedWeek();
+    }
+
+    function toggleThisWeekSlot(userId, slotKey) {
+      if (!thisWeekEditMode) return;
+      const schedule = thisWeekSchedules.find(s => s.userId === userId);
+      if (schedule) {
+        schedule.slots[slotKey] = !schedule.slots[slotKey];
+        loadSelectedWeek();
+      }
+    }
+
+    async function saveThisWeekEdits() {
+      try {
+        const weekId = thisWeekSelectedWeekId || getCalendarWeekId();
+        for (const schedule of thisWeekSchedules) {
+          const response = await fetch(`${API_BASE_URL}/schedule/submit`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+              weekId: weekId,
+              userId: schedule.userId,
+              displayName: schedule.displayName,
+              slots: schedule.slots,
+              notes: schedule.notes || {}
+            })
+          });
+          if (!response.ok) throw new Error(`${schedule.displayName}の保存に失敗`);
+        }
+        alert('保存しました');
+        thisWeekEditMode = false;
+        const btn = document.getElementById('thisWeekEditBtn');
+        if (btn) {
+          btn.textContent = '編集';
+          btn.style.background = '#667eea';
+        }
+        await loadSelectedWeek();
+      } catch (error) {
+        alert('保存に失敗しました: ' + error.message);
+      }
+    }
+
+    function cancelThisWeekEdit() {
+      thisWeekEditMode = false;
+      const btn = document.getElementById('thisWeekEditBtn');
+      if (btn) {
+        btn.textContent = '編集';
+        btn.style.background = '#667eea';
+      }
+      loadSelectedWeek();
+    }
+
+    async function loadSelectedWeek() {
+      const selectedWeekId = thisWeekSelectedWeekId || getCalendarWeekId();
+      const display = document.getElementById('finalizedScheduleDisplay');
+
+      try {
+        thisWeekSchedules = [];
+        const response = await fetch(`${API_BASE_URL}/schedule/week/${selectedWeekId}`);
+        if (response.ok) {
+          const data = await response.json();
+          for (const member of familyMembers) {
+            const userData = data.users.find(u => u.userId === member.userId);
+            if (userData) {
+              thisWeekSchedules.push({
+                userId: userData.userId,
+                displayName: userData.displayName,
+                slots: userData.slots || {},
+                notes: userData.notes || {},
+                startDate: data.startDate,
+                endDate: data.endDate
+              });
+            } else {
+              thisWeekSchedules.push({
+                userId: member.userId,
+                displayName: member.displayName,
+                slots: {},
+                notes: {},
+                startDate: data.startDate,
+                endDate: data.endDate
+              });
+            }
+          }
+        } else {
+          for (const member of familyMembers) {
+            thisWeekSchedules.push({
+              userId: member.userId,
+              displayName: member.displayName,
+              slots: {},
+              notes: {},
+              startDate: '',
+              endDate: ''
+            });
+          }
+        }
+        const weekSchedules = thisWeekSchedules;
+
+        let html = '<div class="finalized-schedule">';
+        html += `<h3>${formatWeekRange(selectedWeekId)}</h3>`;
+
+        const dates = generate7DaysFromMonday(selectedWeekId);
+        const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+        const timeSlots = ['allday', '09', '17', '21', '24'];
+        const timeLabels = {allday: '終日', '09': '9時', '17': '17時', '21': '21時', '24': '24時'};
+
+        const absentDays = [];
+        dates.forEach((dateStr) => {
+          let hasAnyoneAssigned = false;
+          timeSlots.forEach(timeSlot => {
+            weekSchedules.forEach(schedule => {
+              const slotKey = `${dateStr}:${timeSlot}`;
+              if (schedule.slots[slotKey]) {
+                hasAnyoneAssigned = true;
+              }
+            });
+          });
+
+          if (!hasAnyoneAssigned) {
+            const date = new Date(dateStr + 'T00:00:00+09:00');
+            const dayOfWeek = dayNames[date.getDay()];
+            const month = date.getMonth() + 1;
+            const day = date.getDate();
+            absentDays.push(`${month}/${day}(${dayOfWeek})`);
+          }
+        });
+
+        if (absentDays.length > 0) {
+          html += '<div style="background:#fff3cd;border-left:4px solid #ffc107;padding:12px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#856404">';
+          html += '⚠️ 担当者不在の日: ' + absentDays.join(', ');
+          html += '</div>';
+        }
+
+        dates.forEach((dateStr) => {
+          const date = new Date(dateStr + 'T00:00:00+09:00');
+          const dayOfWeek = dayNames[date.getDay()];
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+
+          html += `<table class="summary-table"><caption style="text-align:left;font-weight:600;padding:8px 0;font-size:14px">${year}/${month}/${day}(${dayOfWeek})</caption><thead><tr><th>時間帯</th>`;
+          familyMembers.forEach(member => {
+            html += `<th>${member.displayName}</th>`;
+          });
+          html += `</tr></thead><tbody>`;
+
+          timeSlots.forEach(timeSlot => {
+            html += `<tr><td>${timeLabels[timeSlot]}</td>`;
+            weekSchedules.forEach(schedule => {
+              const slotKey = `${dateStr}:${timeSlot}`;
+              const isAvailable = schedule.slots[slotKey];
+              const cellClass = isAvailable ? 'available' : 'unavailable';
+              const cellText = isAvailable ? '◯' : '✕';
+              const clickHandler = thisWeekEditMode ? `onclick="toggleThisWeekSlot('${schedule.userId}','${slotKey}')"` : '';
+              const editStyle = thisWeekEditMode ? 'cursor:pointer' : '';
+              html += `<td class="${cellClass}" data-user="${schedule.userId}" data-slot="${slotKey}" style="${editStyle}" ${clickHandler}>${cellText}</td>`;
+            });
+            html += `</tr>`;
+          });
+
+          html += `</tbody></table>`;
+
+          weekSchedules.forEach(schedule => {
+            if (schedule.notes && schedule.notes[dateStr]) {
+              html += `<div class="note-display">${schedule.displayName}: ${schedule.notes[dateStr]}</div>`;
+            }
+          });
+        });
+
+        if (thisWeekEditMode) {
+          html += '<div style="margin-top:16px;text-align:center">';
+          html += `<button onclick="saveThisWeekEdits()" style="background:#667eea;color:#fff;border:none;padding:12px 24px;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 2px 4px rgba(0,0,0,.1)">保存</button>`;
+          html += `<button onclick="cancelThisWeekEdit()" style="background:#6c757d;color:#fff;border:none;padding:12px 24px;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 2px 4px rgba(0,0,0,.1);margin-left:10px">キャンセル</button>`;
+          html += '</div>';
+        }
+
+        html += '</div>';
+
+        display.innerHTML = html;
+      } catch (error) {
+        console.error('Failed to load selected week', error);
+        display.innerHTML = '<div class="error">週データの読み込みに失敗しました</div>';
+      }
+    }
+
+    function generate7DaysFromMonday(weekId) {
+      const dates = [];
+      const baseDate = new Date(weekId + 'T00:00:00+09:00');
+
+      for (let i = 0; i < 7; i++) {
+        const currentDate = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate() + i);
+        const year = currentDate.getFullYear();
+        const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+        const date = String(currentDate.getDate()).padStart(2, '0');
+        dates.push(`${year}-${month}-${date}`);
+      }
+      return dates;
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function formatWeekRange(weekId) {
+      const { monday, sunday } = getWeekDateRange(weekId);
+      const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+      const startDow = dayNames[monday.getDay()];
+      const endDow = dayNames[sunday.getDay()];
+      const startStr = `${monday.getFullYear()}/${String(monday.getMonth() + 1).padStart(2, '0')}/${String(monday.getDate()).padStart(2, '0')}(${startDow})`;
+      const endStr = `${sunday.getFullYear()}/${String(sunday.getMonth() + 1).padStart(2, '0')}/${String(sunday.getDate()).padStart(2, '0')}(${endDow})`;
+      return `${startStr}～${endStr}`;
+    }
+
+    // ========== 来週の予定タブ ==========
+    let nextWeekSelectedWeekId = null;
+    let nextWeekEditMode = false;
+    let nextWeekSchedules = [];
+    let weekPickerTarget = 'adjust';
+
+    async function renderNextWeek() {
+      const container = document.getElementById('nextWeekContent');
+      try {
+        if (!nextWeekSelectedWeekId) {
+          nextWeekSelectedWeekId = getNextWeekId();
+        }
+        const { monday, sunday } = getWeekDateRange(nextWeekSelectedWeekId);
+        const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+
+        let html = '<div class="week-selector-section">';
+        html += `<span style="font-weight:600;font-size:14px;color:#495057">表示週: ${monday.getFullYear()}/${String(monday.getMonth() + 1).padStart(2, '0')}/${String(monday.getDate()).padStart(2, '0')}(${dayNames[monday.getDay()]})〜${sunday.getFullYear()}/${String(sunday.getMonth() + 1).padStart(2, '0')}/${String(sunday.getDate()).padStart(2, '0')}(${dayNames[sunday.getDay()]})</span>`;
+        html += '<button class="period-change-btn" onclick="openNextWeekPicker()">期間変更</button>';
+        html += '<button id="nextWeekEditBtn" class="period-change-btn" style="background:#667eea;margin-left:6px" onclick="toggleNextWeekEditMode()">編集</button>';
+        html += '</div>';
+        html += '<div id="nextWeekScheduleDisplay"></div>';
+        container.innerHTML = html;
+        await loadNextWeekSchedule();
+      } catch (error) {
+        console.error('Failed to render next week', error);
+        container.innerHTML = '<div class="error">来週の予定の読み込みに失敗しました</div>';
+      }
+    }
+
+    function toggleNextWeekEditMode() {
+      nextWeekEditMode = !nextWeekEditMode;
+      const btn = document.getElementById('nextWeekEditBtn');
+      if (btn) {
+        btn.textContent = nextWeekEditMode ? '編集中' : '編集';
+        btn.style.background = nextWeekEditMode ? '#dc3545' : '#667eea';
+      }
+      loadNextWeekSchedule();
+    }
+
+    function toggleNextWeekSlot(userId, slotKey) {
+      if (!nextWeekEditMode) return;
+      const schedule = nextWeekSchedules.find(s => s.userId === userId);
+      if (schedule) {
+        schedule.slots[slotKey] = !schedule.slots[slotKey];
+        loadNextWeekSchedule();
+      }
+    }
+
+    async function saveNextWeekEdits() {
+      try {
+        const weekId = nextWeekSelectedWeekId || getNextWeekId();
+        for (const schedule of nextWeekSchedules) {
+          const response = await fetch(`${API_BASE_URL}/schedule/submit`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+              weekId: weekId,
+              userId: schedule.userId,
+              displayName: schedule.displayName,
+              slots: schedule.slots,
+              notes: schedule.notes || {}
+            })
+          });
+          if (!response.ok) throw new Error(`${schedule.displayName}の保存に失敗`);
+        }
+        alert('保存しました');
+        nextWeekEditMode = false;
+        const btn = document.getElementById('nextWeekEditBtn');
+        if (btn) {
+          btn.textContent = '編集';
+          btn.style.background = '#667eea';
+        }
+        await loadNextWeekSchedule();
+      } catch (error) {
+        alert('保存に失敗しました: ' + error.message);
+      }
+    }
+
+    function cancelNextWeekEdit() {
+      nextWeekEditMode = false;
+      const btn = document.getElementById('nextWeekEditBtn');
+      if (btn) {
+        btn.textContent = '編集';
+        btn.style.background = '#667eea';
+      }
+      loadNextWeekSchedule();
+    }
+
+    async function loadNextWeekSchedule() {
+      const display = document.getElementById('nextWeekScheduleDisplay');
+      try {
+        nextWeekSchedules = [];
+        const response = await fetch(`${API_BASE_URL}/schedule/week/${nextWeekSelectedWeekId}`);
+        if (response.ok) {
+          const data = await response.json();
+          for (const member of familyMembers) {
+            const userData = data.users.find(u => u.userId === member.userId);
+            nextWeekSchedules.push(userData ? {
+              userId: userData.userId,
+              displayName: userData.displayName,
+              slots: userData.slots || {},
+              notes: userData.notes || {}
+            } : {
+              userId: member.userId,
+              displayName: member.displayName,
+              slots: {},
+              notes: {}
+            });
+          }
+        } else {
+          for (const member of familyMembers) {
+            nextWeekSchedules.push({ userId: member.userId, displayName: member.displayName, slots: {}, notes: {} });
+          }
+        }
+        const weekSchedules = nextWeekSchedules;
+
+        let html = '<div class="finalized-schedule">';
+        html += `<h3>${formatWeekRange(nextWeekSelectedWeekId)}</h3>`;
+        const dates = generate7DaysFromMonday(nextWeekSelectedWeekId);
+        const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+        const timeSlots = ['allday', '09', '17', '21', '24'];
+        const timeLabels = {allday: '終日', '09': '9時', '17': '17時', '21': '21時', '24': '24時'};
+
+        const absentDays = [];
+        dates.forEach((dateStr) => {
+          let hasAnyoneAssigned = false;
+          timeSlots.forEach(timeSlot => {
+            weekSchedules.forEach(schedule => {
+              if (schedule.slots[`${dateStr}:${timeSlot}`]) hasAnyoneAssigned = true;
+            });
+          });
+          if (!hasAnyoneAssigned) {
+            const date = new Date(dateStr + 'T00:00:00+09:00');
+            absentDays.push(`${date.getMonth() + 1}/${date.getDate()}(${dayNames[date.getDay()]})`);
+          }
+        });
+
+        if (absentDays.length > 0) {
+          html += '<div style="background:#fff3cd;border-left:4px solid #ffc107;padding:12px;margin-bottom:16px;border-radius:4px;font-size:13px;color:#856404">';
+          html += '⚠️ 担当者不在の日: ' + absentDays.join(', ');
+          html += '</div>';
+        }
+
+        dates.forEach((dateStr) => {
+          const date = new Date(dateStr + 'T00:00:00+09:00');
+          html += `<table class="summary-table"><caption style="text-align:left;font-weight:600;padding:8px 0;font-size:14px">${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}(${dayNames[date.getDay()]})</caption><thead><tr><th>時間帯</th>`;
+          familyMembers.forEach(member => { html += `<th>${member.displayName}</th>`; });
+          html += `</tr></thead><tbody>`;
+          timeSlots.forEach(timeSlot => {
+            html += `<tr><td>${timeLabels[timeSlot]}</td>`;
+            weekSchedules.forEach(schedule => {
+              const slotKey = `${dateStr}:${timeSlot}`;
+              const isAvailable = schedule.slots[slotKey];
+              const clickHandler = nextWeekEditMode ? `onclick="toggleNextWeekSlot('${schedule.userId}','${slotKey}')"` : '';
+              const editStyle = nextWeekEditMode ? 'cursor:pointer' : '';
+              html += `<td class="${isAvailable ? 'available' : 'unavailable'}" data-user="${schedule.userId}" data-slot="${slotKey}" style="${editStyle}" ${clickHandler}>${isAvailable ? '◯' : '✕'}</td>`;
+            });
+            html += `</tr>`;
+          });
+          html += `</tbody></table>`;
+          weekSchedules.forEach(schedule => {
+            if (schedule.notes && schedule.notes[dateStr]) {
+              html += `<div class="note-display">${schedule.displayName}: ${schedule.notes[dateStr]}</div>`;
+            }
+          });
+        });
+
+        if (nextWeekEditMode) {
+          html += '<div style="margin-top:16px;text-align:center">';
+          html += `<button onclick="saveNextWeekEdits()" style="background:#667eea;color:#fff;border:none;padding:12px 24px;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 2px 4px rgba(0,0,0,.1)">保存</button>`;
+          html += `<button onclick="cancelNextWeekEdit()" style="background:#6c757d;color:#fff;border:none;padding:12px 24px;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 2px 4px rgba(0,0,0,.1);margin-left:10px">キャンセル</button>`;
+          html += '</div>';
+        }
+
+        html += '</div>';
+        display.innerHTML = html;
+      } catch (error) {
+        console.error('Failed to load next week schedule', error);
+        display.innerHTML = '<div class="error">週データの読み込みに失敗しました</div>';
+      }
+    }
+
+    function openNextWeekPicker() {
+      weekPickerTarget = 'nextWeek';
+      document.getElementById('weekPickerModal').classList.add('active');
+      document.getElementById('weekPickerDate').value = nextWeekSelectedWeekId || getNextWeekId();
+    }
+
+    // ========== スケジュール入力タブ ==========
+    let selectedInputWeekId = null;
+    let currentMemberFilter = 'all';
+
+    function openWeekPicker() {
+      weekPickerTarget = 'adjust';
+      document.getElementById('weekPickerModal').classList.add('active');
+      document.getElementById('weekPickerDate').value = selectedInputWeekId || getNextWeekId();
+    }
+
+    function closeWeekPicker() {
+      document.getElementById('weekPickerModal').classList.remove('active');
+    }
+
+    async function confirmWeekSelection() {
+      const dateInput = document.getElementById('weekPickerDate').value;
+      if (!dateInput) return;
+
+      const selectedDate = new Date(dateInput + 'T00:00:00+09:00');
+      const day = selectedDate.getDay();
+      const daysFromMonday = (day === 0) ? -6 : (1 - day);
+      selectedDate.setDate(selectedDate.getDate() + daysFromMonday);
+
+      const year = selectedDate.getFullYear();
+      const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const date = String(selectedDate.getDate()).padStart(2, '0');
+      const newWeekId = `${year}-${month}-${date}`;
+
+      closeWeekPicker();
+
+      if (weekPickerTarget === 'thisWeek') {
+        thisWeekSelectedWeekId = newWeekId;
+        thisWeekEditMode = false;
+        await renderThisWeek();
+      } else if (weekPickerTarget === 'nextWeek') {
+        nextWeekSelectedWeekId = newWeekId;
+        nextWeekEditMode = false;
+        await renderNextWeek();
+      } else {
+        selectedInputWeekId = newWeekId;
+        await loadAllSchedulesForWeek(selectedInputWeekId);
+        renderAdjust();
+      }
+    }
+
+    async function loadAllSchedulesForWeek(targetWeekId) {
+      allSchedules = [];
+      try {
+        const response = await fetch(`${API_BASE_URL}/schedule/week/${targetWeekId}`);
+        if (!response.ok) {
+          for (const member of familyMembers) {
+            allSchedules.push({userId: member.userId, displayName: member.displayName, weekId: targetWeekId, startDate: '', endDate: '', deadline: '', isLocked: false, slots: {}, notes: {}});
+          }
+          return;
+        }
+
+        const data = await response.json();
+        for (const member of familyMembers) {
+          const userData = data.users.find(u => u.userId === member.userId);
+          if (userData) {
+            allSchedules.push({
+              userId: userData.userId,
+              displayName: userData.displayName,
+              weekId: data.weekId,
+              startDate: data.startDate,
+              endDate: data.endDate,
+              deadline: data.deadline,
+              isLocked: data.isLocked,
+              slots: userData.slots || {},
+              notes: userData.notes || {}
+            });
+          } else {
+            allSchedules.push({userId: member.userId, displayName: member.displayName, weekId: data.weekId, startDate: data.startDate, endDate: data.endDate, deadline: data.deadline, isLocked: data.isLocked, slots: {}, notes: {}});
+          }
+        }
+
+        if (allSchedules.length > 0 && allSchedules[0].startDate) {
+          currentWeekInfo = allSchedules[0];
+        }
+      } catch (error) {
+        for (const member of familyMembers) {
+          allSchedules.push({userId: member.userId, displayName: member.displayName, weekId: targetWeekId, startDate: '', endDate: '', deadline: '', isLocked: false, slots: {}, notes: {}});
+        }
+      }
+    }
+
+    function filterByMember() {
+      const filter = document.getElementById('memberFilter').value;
+      currentMemberFilter = filter;
+      const sections = document.querySelectorAll('.member-section');
+      sections.forEach(section => {
+        const userId = section.dataset.userId;
+        section.style.display = (filter === 'all' || userId === filter) ? 'block' : 'none';
+      });
+    }
+
+
+    function renderAdjust() {
+      const container = document.getElementById('adjustContent');
+      if (allSchedules.length === 0) {
+        container.innerHTML = '<div class="error">データがありません</div>';
+        return;
+      }
+
+      const currentWeek = selectedInputWeekId || weekId;
+      const { monday, sunday } = getWeekDateRange(currentWeek);
+      const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+
+      let html = '';
+
+      html += '<div class="week-selector-section">';
+      html += `<span id="currentWeekDisplay" style="font-weight:600;font-size:14px;color:#495057">入力週: ${monday.getFullYear()}/${String(monday.getMonth() + 1).padStart(2, '0')}/${String(monday.getDate()).padStart(2, '0')}(${dayNames[monday.getDay()]})〜${sunday.getFullYear()}/${String(sunday.getMonth() + 1).padStart(2, '0')}/${String(sunday.getDate()).padStart(2, '0')}(${dayNames[sunday.getDay()]})</span>`;
+      html += '<button class="period-change-btn" onclick="openWeekPicker()">期間変更</button>';
+      html += '</div>';
+
+      html += '<div class="filter-section">';
+      html += '<select id="memberFilter" onchange="filterByMember()">';
+      html += `<option value="all" ${currentMemberFilter === 'all' ? 'selected' : ''}>全員</option>`;
+      familyMembers.forEach(member => {
+        const selected = currentMemberFilter === member.userId ? 'selected' : '';
+        html += `<option value="${member.userId}" ${selected}>${member.displayName}</option>`;
+      });
+      html += '</select>';
+      html += '</div>';
+
+      allSchedules.forEach(schedule => {
+        const displayStyle = (currentMemberFilter === 'all' || currentMemberFilter === schedule.userId) ? 'block' : 'none';
+        html += `<div class="member-section" data-user-id="${schedule.userId}" style="display:${displayStyle}">`;
+        html += `<div class="member-header">${schedule.displayName}<button class="save-btn" onclick="saveSchedule('${schedule.userId}', '${schedule.displayName}')">保存</button></div>`;
+
+        const currentWeekForDates = selectedInputWeekId || weekId;
+        const dates = generate7DaysFromMonday(currentWeekForDates);
+
+        dates.forEach((dateStr) => {
+          const date = new Date(dateStr + 'T00:00:00+09:00');
+          const dayOfWeek = dayNames[date.getDay()];
+          html += `<div class="day-section">`;
+          html += `<div class="day-title">${formatDate(dateStr)}(${dayOfWeek})</div>`;
+          html += `<div class="slot-group">`;
+          html += renderSlotCheckbox(schedule.userId, dateStr, 'allday', '終日', schedule.slots);
+          html += renderSlotCheckbox(schedule.userId, dateStr, '09', '9時', schedule.slots);
+          html += renderSlotCheckbox(schedule.userId, dateStr, '17', '17時', schedule.slots);
+          html += renderSlotCheckbox(schedule.userId, dateStr, '21', '21時', schedule.slots);
+          html += renderSlotCheckbox(schedule.userId, dateStr, '24', '24時', schedule.slots);
+          html += `</div>`;
+
+          const noteValue = schedule.notes[dateStr] || '';
+          html += `<input type="text" class="note-input" placeholder="備考" data-user="${schedule.userId}" data-date="${dateStr}" value="${noteValue}" style="width:100%;padding:6px;border:1px solid #dee2e6;border-radius:4px;font-size:12px;margin-top:6px">`;
+
+          html += `</div>`;
+        });
+
+        html += `</div>`;
+      });
+
+      container.innerHTML = html;
+
+      const alldayCheckboxes = container.querySelectorAll('input[data-slot$=":allday"]');
+      alldayCheckboxes.forEach(alldayCheckbox => {
+        alldayCheckbox.addEventListener('change', function() {
+          if (this.checked) {
+            const slotKey = this.dataset.slot;
+            const dateStr = slotKey.split(':')[0];
+            const userId = this.dataset.user;
+            const otherSlots = container.querySelectorAll(`input[data-user="${userId}"][data-slot^="${dateStr}:"]:not([data-slot$=":allday"])`);
+            otherSlots.forEach(slot => slot.checked = true);
+          }
+        });
+      });
+    }
+
+    function renderSlotCheckbox(userId, dateStr, timeSlot, label, slots) {
+      const slotKey = `${dateStr}:${timeSlot}`;
+      const checked = slots[slotKey] ? 'checked' : '';
+      return `<label class="slot-checkbox"><input type="checkbox" data-user="${userId}" data-slot="${slotKey}" ${checked}><span>${label}</span></label>`;
+    }
+
+    async function saveSchedule(userId, displayName) {
+      try {
+        const currentWeekToSave = selectedInputWeekId || weekId;
+        const checkboxes = document.querySelectorAll(`input[data-user="${userId}"][data-slot]`);
+        const slots = {};
+        checkboxes.forEach(cb => {
+          slots[cb.dataset.slot] = cb.checked;
+        });
+
+        const noteInputs = document.querySelectorAll(`input[data-user="${userId}"][data-date]`);
+        const notes = {};
+        noteInputs.forEach(input => {
+          if (input.value.trim()) {
+            notes[input.dataset.date] = input.value.trim();
+          }
+        });
+
+        const response = await fetch(`${API_BASE_URL}/schedule/submit`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({weekId: currentWeekToSave, userId, displayName, slots, notes})
+        });
+
+        if (!response.ok) throw new Error('保存に失敗しました');
+
+        alert(`${displayName}さんのスケジュールを保存しました`);
+        await loadAllSchedulesForWeek(currentWeekToSave);
+        renderAdjust();
+      } catch (error) {
+        alert('保存に失敗しました: ' + error.message);
+      }
+    }
+
+    // ========== 累計タブ ==========
+    let cumulativeChart = null;
+    let cumulativeData = null;
+
+    async function renderCumulative() {
+      const container = document.getElementById('cumulativeContent');
+      try {
+        const response = await fetch(`${API_BASE_URL}/history`);
+        if (!response.ok) throw new Error('累計データの取得に失敗しました');
+        const data = await response.json();
+        const { cumulativePoints, weeklyHistory } = data;
+        cumulativeData = cumulativePoints;
+
+        let html = '<div style="background:#fff;padding:16px;border-radius:6px;margin-bottom:16px">';
+        html += '<h3 style="margin-bottom:12px;font-size:15px;color:#495057">累計ポイント</h3>';
+
+        if (weeklyHistory && weeklyHistory.length > 0) {
+          const weekIds = weeklyHistory.map(w => w.weekId).sort();
+          const startWeekId = weekIds[0];
+          const endWeekId = weekIds[weekIds.length - 1];
+
+          const startMonday = new Date(startWeekId + 'T00:00:00+09:00');
+          const endMonday = new Date(endWeekId + 'T00:00:00+09:00');
+          const endSunday = new Date(endMonday);
+          endSunday.setDate(endSunday.getDate() + 6);
+
+          const formatDateShort = (date) => {
+            const month = date.getMonth() + 1;
+            const day = date.getDate();
+            return `${month}/${day}`;
+          };
+
+          html += `<p style="margin-bottom:12px;font-size:13px;color:#6c757d">集計期間: ${formatDateShort(startMonday)} 〜 ${formatDateShort(endSunday)}</p>`;
+        }
+
+        html += '<table class="points-table"><thead><tr><th>名前</th><th>合計</th><th>平日</th><th>土日加算</th></tr></thead><tbody>';
+        if (cumulativePoints && cumulativePoints.length > 0) {
+          cumulativePoints.forEach(point => {
+            html += `<tr><td style="font-weight:600">${point.displayName}</td><td><strong>${point.totalPoints}P</strong></td><td>${point.weekdayPoints}P</td><td>${point.weekendBonusPoints}P</td></tr>`;
+          });
+        } else {
+          html += '<tr><td colspan="4" style="text-align:center;color:#6c757d;padding:16px">データがありません</td></tr>';
+        }
+        html += '</tbody></table></div>';
+
+        html += '<div style="background:#fff;padding:16px;border-radius:6px">';
+        html += '<h3 style="margin-bottom:12px;font-size:15px;color:#495057">ポイント分布</h3>';
+        html += '<div style="margin-bottom:12px">';
+        html += '<select id="chartTypeSelector" onchange="updateCumulativeChart()" style="width:100%;padding:8px;font-size:14px;border:1px solid #dee2e6;border-radius:4px">';
+        html += '<option value="total">合計ポイント</option>';
+        html += '<option value="weekday">平日ポイント</option>';
+        html += '<option value="weekend">土日加算ポイント</option>';
+        html += '</select></div>';
+        html += '<div style="max-width:400px;margin:0 auto"><canvas id="cumulativeChart"></canvas></div>';
+        html += '</div>';
+
+        container.innerHTML = html;
+
+        setTimeout(() => {
+          updateCumulativeChart();
+        }, 300);
+      } catch (error) {
+        console.error('Cumulative data error:', error);
+        container.innerHTML = '<div class="error">累計データの読み込みに失敗しました</div>';
+      }
+    }
+
+    function updateCumulativeChart() {
+      if (!cumulativeData || cumulativeData.length === 0) {
+        return;
+      }
+
+      const selector = document.getElementById('chartTypeSelector');
+      if (!selector) {
+        return;
+      }
+
+      const chartType = selector.value;
+      const labels = cumulativeData.map(p => p.displayName);
+      let dataValues = [];
+      let chartLabel = '';
+
+      if (chartType === 'total') {
+        dataValues = cumulativeData.map(p => p.totalPoints);
+        chartLabel = '合計ポイント';
+      } else if (chartType === 'weekday') {
+        dataValues = cumulativeData.map(p => p.weekdayPoints);
+        chartLabel = '平日ポイント';
+      } else if (chartType === 'weekend') {
+        dataValues = cumulativeData.map(p => p.weekendBonusPoints);
+        chartLabel = '土日加算ポイント';
+      }
+
+      const canvas = document.getElementById('cumulativeChart');
+      if (!canvas) {
+        return;
+      }
+
+      if (cumulativeChart) {
+        cumulativeChart.destroy();
+      }
+
+      if (typeof Chart === 'undefined') {
+        return;
+      }
+
+      cumulativeChart = new Chart(canvas, {
+        type: 'pie',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: chartLabel,
+            data: dataValues,
+            backgroundColor: [
+              'rgba(102, 126, 234, 0.8)',
+              'rgba(118, 75, 162, 0.8)',
+              'rgba(237, 100, 166, 0.8)',
+              'rgba(255, 154, 158, 0.8)'
+            ],
+            borderColor: [
+              'rgba(102, 126, 234, 1)',
+              'rgba(118, 75, 162, 1)',
+              'rgba(237, 100, 166, 1)',
+              'rgba(255, 154, 158, 1)'
+            ],
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                font: {size: 12},
+                padding: 12
+              }
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  const label = context.label || '';
+                  const value = context.parsed || 0;
+                  const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                  const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                  return `${label}: ${value}P (${percentage}%)`;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // ========== ユーティリティ関数 ==========
+    function getDatesArray(startDate, endDate) {
+      const dates = [];
+      const current = new Date(startDate);
+      const end = new Date(endDate);
+      while (current <= end) {
+        dates.push(current.toISOString().split('T')[0]);
+        current.setDate(current.getDate() + 1);
+      }
+      return dates;
+    }
+
+    function formatDate(dateStr) {
+      const date = new Date(dateStr);
+      return `${date.getMonth() + 1}/${date.getDate()}`;
+    }
+
+    function showError(containerId, message) {
+      document.getElementById(containerId).innerHTML = `<div class="error">${message}</div>`;
+    }
+
+    // ========== 編集モーダル ==========
+    let editingWeekId = '';
+
+    async function openEditModal(weekId) {
+      editingWeekId = weekId;
+      const modal = document.getElementById('editModal');
+      const modalBody = document.getElementById('editModalBody');
+      const modalTitle = document.getElementById('editModalTitle');
+      modal.classList.add('active');
+      modalTitle.textContent = `スケジュール編集 - ${formatWeekRange(weekId)}`;
+      modalBody.innerHTML = '<div class="loading">読み込み中...</div>';
+      try {
+        const schedules = [];
+        const response = await fetch(`${API_BASE_URL}/schedule/week/${weekId}`);
+        if (response.ok) {
+          const data = await response.json();
+          for (const member of familyMembers) {
+            const userData = data.users.find(u => u.userId === member.userId);
+            if (userData) {
+              schedules.push({
+                userId: userData.userId,
+                displayName: userData.displayName,
+                weekId: data.weekId,
+                startDate: data.startDate,
+                endDate: data.endDate,
+                slots: userData.slots || {},
+                notes: userData.notes || {}
+              });
+            } else {
+              schedules.push({
+                userId: member.userId,
+                displayName: member.displayName,
+                weekId: data.weekId,
+                startDate: data.startDate,
+                endDate: data.endDate,
+                slots: {},
+                notes: {}
+              });
+            }
+          }
+        }
+
+        if (schedules.length === 0) {
+          modalBody.innerHTML = '<div class="error">データが見つかりません</div>';
+          return;
+        }
+        renderEditForm(schedules, modalBody);
+      } catch (error) {
+        modalBody.innerHTML = '<div class="error">読み込み失敗</div>';
+      }
+    }
+
+    let editMemberFilter = 'all';
+
+    function filterEditMembers() {
+      const filter = document.getElementById('editMemberFilter').value;
+      editMemberFilter = filter;
+      const sections = document.querySelectorAll('#editModalBody .member-section');
+      sections.forEach(section => {
+        const userId = section.dataset.userId;
+        section.style.display = (filter === 'all' || userId === filter) ? 'block' : 'none';
+      });
+    }
+
+    function renderEditForm(schedules, container) {
+      const firstSchedule = schedules[0];
+      const dates = getDatesArray(firstSchedule.startDate, firstSchedule.endDate);
+      const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+
+      let html = '';
+
+      html += '<div class="filter-section">';
+      html += '<select id="editMemberFilter" onchange="filterEditMembers()">';
+      html += `<option value="all" ${editMemberFilter === 'all' ? 'selected' : ''}>全員</option>`;
+      familyMembers.forEach(member => {
+        const selected = editMemberFilter === member.userId ? 'selected' : '';
+        html += `<option value="${member.userId}" ${selected}>${member.displayName}</option>`;
+      });
+      html += '</select>';
+      html += '</div>';
+
+      schedules.forEach(schedule => {
+        const displayStyle = (editMemberFilter === 'all' || editMemberFilter === schedule.userId) ? 'block' : 'none';
+        html += `<div class="member-section" data-user-id="${schedule.userId}" style="display:${displayStyle}">`;
+        html += `<div class="member-header">${schedule.displayName}</div>`;
+
+        dates.forEach((dateStr) => {
+          const date = new Date(dateStr + 'T00:00:00+09:00');
+          const dayOfWeek = dayNames[date.getDay()];
+          html += `<div class="day-section">`;
+          html += `<div class="day-title">${formatDate(dateStr)}(${dayOfWeek})</div>`;
+          html += `<div class="slot-group">`;
+          html += renderSlotCheckbox(schedule.userId, dateStr, 'allday', '終日', schedule.slots);
+          html += renderSlotCheckbox(schedule.userId, dateStr, '09', '9時', schedule.slots);
+          html += renderSlotCheckbox(schedule.userId, dateStr, '17', '17時', schedule.slots);
+          html += renderSlotCheckbox(schedule.userId, dateStr, '21', '21時', schedule.slots);
+          html += renderSlotCheckbox(schedule.userId, dateStr, '24', '24時', schedule.slots);
+          html += `</div>`;
+
+          const noteValue = schedule.notes[dateStr] || '';
+          html += `<input type="text" class="note-input" placeholder="備考" data-user="${schedule.userId}" data-date="${dateStr}" value="${noteValue}" style="width:100%;padding:6px;border:1px solid #dee2e6;border-radius:4px;font-size:12px;margin-top:6px">`;
+          html += `</div>`;
+        });
+
+        html += `</div>`;
+      });
+
+      container.innerHTML = html;
+
+      const alldayCheckboxes = container.querySelectorAll('input[data-slot$=":allday"]');
+      alldayCheckboxes.forEach(alldayCheckbox => {
+        alldayCheckbox.addEventListener('change', function() {
+          if (this.checked) {
+            const slotKey = this.dataset.slot;
+            const dateStr = slotKey.split(':')[0];
+            const userId = this.dataset.user;
+            const otherSlots = container.querySelectorAll(`input[data-user="${userId}"][data-slot^="${dateStr}:"]:not([data-slot$=":allday"])`);
+            otherSlots.forEach(slot => slot.checked = true);
+          }
+        });
+      });
+    }
+
+    function closeEditModal() {
+      document.getElementById('editModal').classList.remove('active');
+      editingWeekId = '';
+    }
+
+    async function saveEditedSchedule() {
+      if (!editingWeekId) return;
+      try {
+        for (const member of familyMembers) {
+          const checkboxes = document.querySelectorAll(`input[data-user="${member.userId}"][data-slot]`);
+          const slots = {};
+          checkboxes.forEach(cb => {slots[cb.dataset.slot] = cb.checked;});
+          const noteInputs = document.querySelectorAll(`input[data-user="${member.userId}"][data-date]`);
+          const notes = {};
+          noteInputs.forEach(input => {if (input.value.trim()) {notes[input.dataset.date] = input.value.trim();}});
+          const response = await fetch(`${API_BASE_URL}/schedule/submit`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({weekId: editingWeekId, userId: member.userId, displayName: member.displayName, slots, notes})
+          });
+          if (!response.ok) throw new Error(`${member.displayName}の保存失敗`);
+        }
+        alert('保存完了');
+        closeEditModal();
+        await loadSelectedWeek();
+      } catch (error) {
+        alert('保存失敗: ' + error.message);
+      }
+    }
+
+    // ========== 犬の記録機能 ==========
+    let dogSelectedDate = new Date();
+    let dogCurrentMonth = new Date();
+    let dogHistoryMonth = new Date();
+    let dogHistorySelectedDate = new Date();
+    let dogDatesWithRecords = new Set();
+    let dogHistoryDatesWithRecords = new Set();
+
+    // 時間セレクターの初期化
+    function initDogTimeSelectors() {
+      const hourSelect = document.getElementById('recordHour');
+      const minuteSelect = document.getElementById('recordMinute');
+
+      if (!hourSelect || hourSelect.options.length > 0) return;
+
+      for (let h = 0; h < 24; h++) {
+        const option = document.createElement('option');
+        option.value = String(h).padStart(2, '0');
+        option.textContent = `${h}時`;
+        hourSelect.appendChild(option);
+      }
+
+      for (let m = 0; m < 60; m += 5) {
+        const option = document.createElement('option');
+        option.value = String(m).padStart(2, '0');
+        option.textContent = `${m}分`;
+        minuteSelect.appendChild(option);
+      }
+
+      setDogCurrentTime();
+    }
+
+    function setDogCurrentTime() {
+      const now = new Date();
+      const jstNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
+      const hourEl = document.getElementById('recordHour');
+      const minuteEl = document.getElementById('recordMinute');
+      if (hourEl) hourEl.value = String(jstNow.getHours()).padStart(2, '0');
+      if (minuteEl) {
+        const minutes = Math.round(jstNow.getMinutes() / 5) * 5;
+        minuteEl.value = String(minutes % 60).padStart(2, '0');
+      }
+    }
+
+    // カレンダー描画
+    async function renderDogCalendar() {
+      const grid = document.getElementById('dogCalendarGrid');
+      const title = document.getElementById('dogCalendarTitle');
+
+      const year = dogCurrentMonth.getFullYear();
+      const month = dogCurrentMonth.getMonth();
+      title.textContent = `${year}年${month + 1}月`;
+
+      const firstDay = new Date(year, month, 1);
+      const lastDay = new Date(year, month + 1, 0);
+
+      const startDate = formatDogDateStr(new Date(year, month, 1));
+      const endDate = formatDogDateStr(new Date(year, month + 1, 0));
+      await loadDogDatesWithRecords(startDate, endDate);
+
+      let html = '';
+      const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+      dayNames.forEach(name => {
+        html += `<div class="calendar-day-header">${name}</div>`;
+      });
+
+      const startDayOfWeek = firstDay.getDay();
+      const prevMonthLastDay = new Date(year, month, 0).getDate();
+      for (let i = startDayOfWeek - 1; i >= 0; i--) {
+        html += `<div class="calendar-day other-month">${prevMonthLastDay - i}</div>`;
+      }
+
+      const today = new Date();
+      const todayStr = formatDogDateStr(today);
+      const selectedStr = formatDogDateStr(dogSelectedDate);
+
+      for (let day = 1; day <= lastDay.getDate(); day++) {
+        const dateStr = formatDogDateStr(new Date(year, month, day));
+        const isToday = dateStr === todayStr;
+        const isSelected = dateStr === selectedStr;
+        const hasRecord = dogDatesWithRecords.has(dateStr);
+
+        let classes = 'calendar-day';
+        if (isToday) classes += ' today';
+        if (isSelected) classes += ' selected';
+        if (hasRecord) classes += ' has-record';
+
+        html += `<div class="${classes}" onclick="selectDogDate('${dateStr}')">${day}</div>`;
+      }
+
+      const endDayOfWeek = lastDay.getDay();
+      for (let i = 1; i < 7 - endDayOfWeek; i++) {
+        html += `<div class="calendar-day other-month">${i}</div>`;
+      }
+
+      grid.innerHTML = html;
+    }
+
+    async function loadDogDatesWithRecords(startDate, endDate) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/records?start=${startDate}&end=${endDate}`);
+        if (response.ok) {
+          const data = await response.json();
+          dogDatesWithRecords = new Set(data.datesWithRecords || []);
+        }
+      } catch (error) {
+        console.error('Failed to load dates with records:', error);
+      }
+    }
+
+    function changeDogMonth(delta) {
+      dogCurrentMonth.setMonth(dogCurrentMonth.getMonth() + delta);
+      renderDogCalendar();
+    }
+
+    async function selectDogDate(dateStr) {
+      dogSelectedDate = new Date(dateStr + 'T00:00:00+09:00');
+      await renderDogCalendar();
+      await loadDogRecordsForDate(dogSelectedDate);
+      updateDogFormDate();
+      setDogCurrentTime();
+    }
+
+    function updateDogFormDate() {
+      const dateStr = formatDogDateStr(dogSelectedDate);
+      const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+      const dayOfWeek = dayNames[dogSelectedDate.getDay()];
+      const formDateEl = document.getElementById('dogFormDate');
+      const listTitleEl = document.getElementById('dogRecordsListTitle');
+      if (formDateEl) {
+        formDateEl.textContent = `${dogSelectedDate.getMonth() + 1}/${dogSelectedDate.getDate()}(${dayOfWeek}) の記録を追加`;
+      }
+      if (listTitleEl) {
+        listTitleEl.textContent = `${dogSelectedDate.getMonth() + 1}/${dogSelectedDate.getDate()}(${dayOfWeek}) の記録`;
+      }
+    }
+
+    // 記録の読み込み
+    async function loadDogRecordsForDate(date) {
+      const dateStr = formatDogDateStr(date);
+      const listContainer = document.getElementById('dogRecordsList');
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/records/${dateStr}`);
+        if (!response.ok) throw new Error('取得失敗');
+
+        const data = await response.json();
+        const records = data.records || [];
+
+        if (records.length === 0) {
+          listContainer.innerHTML = '<div class="no-records">この日の記録はありません</div>';
+          return;
+        }
+
+        let html = '';
+        records.forEach(record => {
+          html += `<div class="record-item">
+            <div class="time">${record.time}</div>
+            <div class="detail">
+              ${record.condition ? `<span>🐕 様子: ${escapeHtml(record.condition)}</span>` : ''}
+              ${record.meal ? `<span>🍚 食事: ${escapeHtml(record.meal)}</span>` : ''}
+              ${record.toilet ? `<span>🚽 トイレ: ${escapeHtml(record.toilet)}</span>` : ''}
+            </div>
+            <button class="delete-btn" onclick="deleteDogRecord('${dateStr}', '${record.recordId}')">削除</button>
+          </div>`;
+        });
+
+        listContainer.innerHTML = html;
+      } catch (error) {
+        listContainer.innerHTML = '<div class="no-records">読み込みに失敗しました</div>';
+      }
+
+      updateDogFormDate();
+    }
+
+    // 記録の保存
+    async function saveDogRecord() {
+      const dateStr = formatDogDateStr(dogSelectedDate);
+      const hour = document.getElementById('recordHour').value;
+      const minute = document.getElementById('recordMinute').value;
+      const time = `${hour}:${minute}`;
+      const condition = document.getElementById('recordCondition').value.trim();
+      const meal = document.getElementById('recordMeal').value.trim();
+      const toilet = document.getElementById('recordToilet').value.trim();
+
+      if (!condition && !meal && !toilet) {
+        alert('様子、食事、トイレのいずれかを入力してください');
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/records`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            recordDate: dateStr,
+            time,
+            condition,
+            meal,
+            toilet
+          })
+        });
+
+        if (!response.ok) throw new Error('保存失敗');
+
+        document.getElementById('recordCondition').value = '';
+        document.getElementById('recordMeal').value = '';
+        document.getElementById('recordToilet').value = '';
+        setDogCurrentTime();
+
+        await renderDogCalendar();
+        await loadDogRecordsForDate(dogSelectedDate);
+
+        alert('保存しました');
+      } catch (error) {
+        alert('保存に失敗しました: ' + error.message);
+      }
+    }
+
+    // 記録の削除
+    async function deleteDogRecord(dateStr, recordId) {
+      if (!confirm('この記録を削除しますか？')) return;
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/records/${dateStr}/${recordId}`, {
+          method: 'DELETE'
+        });
+
+        if (!response.ok) throw new Error('削除失敗');
+
+        await renderDogCalendar();
+        await loadDogRecordsForDate(dogSelectedDate);
+      } catch (error) {
+        alert('削除に失敗しました');
+      }
+    }
+
+    // 履歴カレンダー
+    async function renderDogHistoryCalendar() {
+      const grid = document.getElementById('dogHistoryCalendarGrid');
+      const title = document.getElementById('dogHistoryCalendarTitle');
+
+      const year = dogHistoryMonth.getFullYear();
+      const month = dogHistoryMonth.getMonth();
+      title.textContent = `${year}年${month + 1}月`;
+
+      const firstDay = new Date(year, month, 1);
+      const lastDay = new Date(year, month + 1, 0);
+
+      const startDate = formatDogDateStr(new Date(year, month, 1));
+      const endDate = formatDogDateStr(new Date(year, month + 1, 0));
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/records?start=${startDate}&end=${endDate}`);
+        if (response.ok) {
+          const data = await response.json();
+          dogHistoryDatesWithRecords = new Set(data.datesWithRecords || []);
+        }
+      } catch (error) {
+        console.error('Failed to load history dates:', error);
+      }
+
+      let html = '';
+      const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+      dayNames.forEach(name => {
+        html += `<div class="calendar-day-header">${name}</div>`;
+      });
+
+      const startDayOfWeek = firstDay.getDay();
+      const prevMonthLastDay = new Date(year, month, 0).getDate();
+      for (let i = startDayOfWeek - 1; i >= 0; i--) {
+        html += `<div class="calendar-day other-month">${prevMonthLastDay - i}</div>`;
+      }
+
+      const today = new Date();
+      const todayStr = formatDogDateStr(today);
+      const selectedStr = formatDogDateStr(dogHistorySelectedDate);
+
+      for (let day = 1; day <= lastDay.getDate(); day++) {
+        const dateStr = formatDogDateStr(new Date(year, month, day));
+        const isToday = dateStr === todayStr;
+        const isSelected = dateStr === selectedStr;
+        const hasRecord = dogHistoryDatesWithRecords.has(dateStr);
+
+        let classes = 'calendar-day';
+        if (isToday) classes += ' today';
+        if (isSelected) classes += ' selected';
+        if (hasRecord) classes += ' has-record';
+
+        html += `<div class="${classes}" onclick="selectDogHistoryDate('${dateStr}')">${day}</div>`;
+      }
+
+      const endDayOfWeek = lastDay.getDay();
+      for (let i = 1; i < 7 - endDayOfWeek; i++) {
+        html += `<div class="calendar-day other-month">${i}</div>`;
+      }
+
+      grid.innerHTML = html;
+    }
+
+    function changeDogHistoryMonth(delta) {
+      dogHistoryMonth.setMonth(dogHistoryMonth.getMonth() + delta);
+      renderDogHistoryCalendar();
+    }
+
+    async function selectDogHistoryDate(dateStr) {
+      dogHistorySelectedDate = new Date(dateStr + 'T00:00:00+09:00');
+      await renderDogHistoryCalendar();
+      await loadDogHistoryRecords(dateStr);
+    }
+
+    async function loadDogHistoryRecords(dateStr) {
+      const listContainer = document.getElementById('dogHistoryList');
+      const titleEl = document.getElementById('dogHistoryListTitle');
+
+      const date = new Date(dateStr + 'T00:00:00+09:00');
+      const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+      titleEl.textContent = `${date.getMonth() + 1}/${date.getDate()}(${dayNames[date.getDay()]}) の記録`;
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/records/${dateStr}`);
+        if (!response.ok) throw new Error('取得失敗');
+
+        const data = await response.json();
+        const records = data.records || [];
+
+        if (records.length === 0) {
+          listContainer.innerHTML = '<div class="no-records">この日の記録はありません</div>';
+          return;
+        }
+
+        let html = '';
+        records.forEach(record => {
+          html += `<div class="record-item">
+            <div class="time">${record.time}</div>
+            <div class="detail">
+              ${record.condition ? `<span>🐕 様子: ${escapeHtml(record.condition)}</span>` : ''}
+              ${record.meal ? `<span>🍚 食事: ${escapeHtml(record.meal)}</span>` : ''}
+              ${record.toilet ? `<span>🚽 トイレ: ${escapeHtml(record.toilet)}</span>` : ''}
+            </div>
+            <button class="delete-btn" onclick="deleteDogHistoryRecord('${dateStr}', '${record.recordId}')">削除</button>
+          </div>`;
+        });
+
+        listContainer.innerHTML = html;
+      } catch (error) {
+        listContainer.innerHTML = '<div class="no-records">読み込みに失敗しました</div>';
+      }
+    }
+
+    async function deleteDogHistoryRecord(dateStr, recordId) {
+      if (!confirm('この記録を削除しますか？')) return;
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/records/${dateStr}/${recordId}`, {
+          method: 'DELETE'
+        });
+
+        if (!response.ok) throw new Error('削除失敗');
+
+        await renderDogHistoryCalendar();
+        await loadDogHistoryRecords(dateStr);
+      } catch (error) {
+        alert('削除に失敗しました');
+      }
+    }
+
+    // 要約機能
+    function initDogSummaryDates() {
+      const today = new Date();
+      const weekAgo = new Date(today);
+      weekAgo.setDate(weekAgo.getDate() - 7);
+
+      const startEl = document.getElementById('summaryStartDate');
+      const endEl = document.getElementById('summaryEndDate');
+      if (startEl) startEl.value = formatDogDateStr(weekAgo);
+      if (endEl) endEl.value = formatDogDateStr(today);
+    }
+
+    async function generateDogSummary() {
+      const startDate = document.getElementById('summaryStartDate').value;
+      const endDate = document.getElementById('summaryEndDate').value;
+      const resultContainer = document.getElementById('summaryResult');
+
+      if (!startDate || !endDate) {
+        alert('期間を選択してください');
+        return;
+      }
+
+      resultContainer.innerHTML = '<div class="summary-loading">AIが要約を生成中...</div>';
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/records/summary`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ startDate, endDate })
+        });
+
+        if (!response.ok) throw new Error('要約の生成に失敗しました');
+
+        const data = await response.json();
+        resultContainer.innerHTML = `<div class="summary-result">${escapeHtml(data.summary)}</div>
+          <p style="margin-top:8px;font-size:12px;color:#6c757d">（${data.recordCount}件の記録を要約）</p>`;
+      } catch (error) {
+        resultContainer.innerHTML = `<div class="no-records">要約の生成に失敗しました: ${error.message}</div>`;
+      }
+    }
+
+    // 薬リストモーダル
+    let medicationsData = [];
+
+    async function openMedicationModal() {
+      document.getElementById('medicationModal').classList.add('active');
+      await loadMedications();
+    }
+
+    function closeMedicationModal() {
+      document.getElementById('medicationModal').classList.remove('active');
+    }
+
+    async function loadMedications() {
+      const body = document.getElementById('medicationBody');
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/medications`);
+        if (!response.ok) throw new Error('取得失敗');
+
+        const data = await response.json();
+        medicationsData = data.medications || [];
+        const timePeriods = data.timePeriods || ['朝', '昼', '夜', '寝る前'];
+
+        let html = '<table class="med-table"><thead><tr><th>薬名</th>';
+        timePeriods.forEach(period => {
+          html += `<th>${period}</th>`;
+        });
+        html += '</tr></thead><tbody>';
+
+        medicationsData.forEach((med, index) => {
+          html += `<tr>
+            <td><input type="text" value="${escapeHtml(med.name)}" data-med-index="${index}" onchange="updateMedName(${index}, this.value)"></td>`;
+          timePeriods.forEach(period => {
+            const checked = med.periods[period] ? 'checked' : '';
+            html += `<td><input type="checkbox" ${checked} onchange="updateMedPeriod(${index}, '${period}', this.checked)"></td>`;
+          });
+          html += '</tr>';
+        });
+
+        html += '</tbody></table>';
+        body.innerHTML = html;
+      } catch (error) {
+        body.innerHTML = '<div class="no-records">薬リストの読み込みに失敗しました</div>';
+      }
+    }
+
+    function updateMedName(index, name) {
+      if (medicationsData[index]) {
+        medicationsData[index].name = name;
+      }
+    }
+
+    function updateMedPeriod(index, period, checked) {
+      if (medicationsData[index]) {
+        medicationsData[index].periods[period] = checked;
+      }
+    }
+
+    async function saveMedications() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/medications`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ medications: medicationsData })
+        });
+
+        if (!response.ok) throw new Error('保存失敗');
+
+        alert('薬リストを保存しました');
+        closeMedicationModal();
+      } catch (error) {
+        alert('保存に失敗しました');
+      }
+    }
+
+    // ユーティリティ
+    function formatDogDateStr(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    // ========== ホームタブ用関数 ==========
+    // 犬の画像リスト
+    const homeDogImages = {
+      normal: [
+        'images/dog/normal/IMG_3707.webp','images/dog/normal/IMG_3708.webp','images/dog/normal/IMG_3709.webp',
+        'images/dog/normal/IMG_3710.webp','images/dog/normal/IMG_3711.webp','images/dog/normal/IMG_3714.webp',
+        'images/dog/normal/IMG_3715.webp','images/dog/normal/IMG_3717.webp','images/dog/normal/IMG_3719.webp',
+        'images/dog/normal/IMG_3725.webp','images/dog/normal/IMG_3726.webp','images/dog/normal/IMG_3733.webp'
+      ],
+      happy: [
+        'images/dog/happy/IMG_3713.webp','images/dog/happy/IMG_3716.webp','images/dog/happy/IMG_3723.webp',
+        'images/dog/happy/IMG_3724.webp','images/dog/happy/IMG_3732.webp'
+      ],
+      thinking: [
+        'images/dog/thinking/IMG_3727.webp','images/dog/thinking/IMG_3729.webp',
+        'images/dog/thinking/IMG_3730.webp','images/dog/thinking/IMG_3731.webp'
+      ],
+      sad: ['images/dog/sad/IMG_3720.webp','images/dog/sad/IMG_3721.webp']
+    };
+
+    // オレの一言リスト
+    const homeHitokotoList = [
+      'オレはチロル！好きなことはクン活だ！',
+      '食べたいものは変わるけど…大目に見ろよ！',
+      'みんなの笑顔が大好きなんだぜ！',
+      'オレは優しいから、みんなのそばにいるぞ！',
+      '小さい頃のことは…聞かないでくれよな…',
+      '広島出身、東京在住だ！すげーだろ！',
+      'ささみと芋、イチゴが最高なんだぞ～'
+    ];
+
+    // ホームタブ状態
+    let homeState = 'menu';
+    let homeExpression = 'normal';
+    let homeCalendarMonth = new Date();
+    let homeSelectedCalendarDate = null;
+    let homeScheduleDataCache = {};
+    let homeCurrentRecordType = null;
+
+    function initHomeTab() {
+      initHomeTimeSelectors();
+      updateHomeTodayInfo();
+      homeSetRandomDogImage('normal');
+    }
+
+    function initHomeTimeSelectors() {
+      const hourSelect = document.getElementById('homeRecordHour');
+      const minuteSelect = document.getElementById('homeRecordMinute');
+      if (!hourSelect || hourSelect.options.length > 0) return;
+      for (let h = 0; h < 24; h++) {
+        const opt = document.createElement('option');
+        opt.value = String(h).padStart(2, '0');
+        opt.textContent = `${h}時`;
+        hourSelect.appendChild(opt);
+      }
+      for (let m = 0; m < 60; m += 5) {
+        const opt = document.createElement('option');
+        opt.value = String(m).padStart(2, '0');
+        opt.textContent = `${m}分`;
+        minuteSelect.appendChild(opt);
+      }
+      homeSetCurrentTime();
+    }
+
+    function homeSetCurrentTime() {
+      const now = new Date();
+      const hourEl = document.getElementById('homeRecordHour');
+      const minEl = document.getElementById('homeRecordMinute');
+      if (hourEl) hourEl.value = String(now.getHours()).padStart(2, '0');
+      if (minEl) minEl.value = String(Math.round(now.getMinutes() / 5) * 5 % 60).padStart(2, '0');
+    }
+
+    async function updateHomeTodayInfo() {
+      const now = new Date();
+      const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+      const todayStr = `${now.getMonth() + 1}/${now.getDate()}(${dayNames[now.getDay()]})`;
+      const todayDateEl = document.getElementById('homeTodayDate');
+      if (todayDateEl) todayDateEl.textContent = todayStr;
+      const personEl = document.getElementById('homeTodayPerson');
+      try {
+        const weekId = getWeekId(now);
+        const response = await fetch(`${API_BASE_URL}/schedule/week/${weekId}`);
+        if (response.ok) {
+          const data = await response.json();
+          const dateStr = formatDateForApi(now);
+          const person = homeGetTodayPerson(data, dateStr);
+          if (personEl) personEl.textContent = person || '未定';
+        } else {
+          if (personEl) personEl.textContent = '未定';
+        }
+      } catch (e) {
+        console.error('Failed to load today info:', e);
+        if (personEl) personEl.textContent = '未定';
+      }
+    }
+
+    function homeGetTodayPerson(data, dateStr) {
+      const timeSlots = ['allday', '09', '17', '21', '24'];
+      const timeLabels = { allday: '終日', '09': '9時〜', '17': '17時〜', '21': '21時〜', '24': '24時〜' };
+      const assignments = [];
+      for (const user of data.users || []) {
+        const userSlots = [];
+        for (const slot of timeSlots) {
+          const key = `${dateStr}:${slot}`;
+          if (user.slots && user.slots[key]) userSlots.push(slot);
+        }
+        if (userSlots.length > 0) assignments.push({ name: user.displayName, slots: userSlots });
+      }
+      if (assignments.length === 0) return null;
+      const allAllday = assignments.every(a => a.slots.includes('allday') && a.slots.length === 1);
+      if (allAllday) return `${assignments.map(a => a.name).join('と')}（終日）`;
+      return assignments.map(a => {
+        if (a.slots.includes('allday')) return a.name;
+        return `${a.name}（${timeLabels[a.slots[0]]}）`;
+      }).join('と');
+    }
+
+    function homeSetRandomDogImage(expression) {
+      const images = homeDogImages[expression];
+      const img = images[Math.floor(Math.random() * images.length)];
+      homeChangeDogImage(img, expression);
+    }
+
+    function homeChangeDogImage(src, expression) {
+      const dogImg = document.getElementById('homeDogImage');
+      if (!dogImg) return;
+      if (homeExpression === expression && dogImg.src.includes(src)) return;
+      // 新しい画像をプリロード
+      const preload = new Image();
+      preload.src = src;
+      preload.onload = () => {
+        dogImg.classList.add('fade-out');
+        setTimeout(() => {
+          dogImg.src = src;
+          homeExpression = expression;
+          dogImg.classList.remove('fade-out');
+        }, 500);
+      };
+      preload.onerror = () => {
+        // プリロード失敗時は直接切り替え
+        dogImg.src = src;
+        homeExpression = expression;
+      };
+    }
+
+    function homeHideAllAreas() {
+      ['homeMenuButtons', 'homeProgressContainer', 'homeRecordTypeSelect', 'homeRecordInput',
+       'homeChoiceButtons', 'homeCalendarArea', 'homeScheduleDisplay', 'homeScheduleEdit'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.style.display = 'none';
+          el.classList.remove('active');
+        }
+      });
+    }
+
+    function homeShowMenu() {
+      homeHideAllAreas();
+      const menu = document.getElementById('homeMenuButtons');
+      if (menu) menu.style.display = 'flex';
+    }
+
+    function homeSetSpeechText(text) {
+      const bubble = document.getElementById('homeSpeechBubble');
+      const textEl = document.getElementById('homeSpeechText');
+      if (bubble && textEl) {
+        bubble.classList.add('fade-out');
+        setTimeout(() => {
+          textEl.innerHTML = text;
+          bubble.classList.remove('fade-out');
+        }, 500);
+      }
+    }
+
+    async function homeShowThinking(minDuration = 3000) {
+      homeHideAllAreas();
+      homeSetRandomDogImage('thinking');
+      homeSetSpeechText('ちょっと待ってくれ...');
+      const prog = document.getElementById('homeProgressContainer');
+      if (prog) {
+        prog.style.display = 'block';
+        prog.classList.add('active');
+        const bar = prog.querySelector('.progress-bar-inner');
+        if (bar) {
+          bar.style.animation = 'none';
+          bar.offsetHeight;
+          bar.style.animation = `progress ${minDuration}ms ease-in-out`;
+        }
+      }
+      return new Promise(r => setTimeout(r, minDuration));
+    }
+
+    function homeReturnToMenu(delay = 3000) {
+      setTimeout(() => {
+        homeState = 'menu';
+        homeSetRandomDogImage('normal');
+        const now = new Date();
+        const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+        const todayStr = `${now.getMonth() + 1}/${now.getDate()}(${dayNames[now.getDay()]})`;
+        homeSetSpeechText(`今日は <span class="highlight">${todayStr}</span> ！<br>担当は <span class="highlight" id="homeTodayPerson">-</span>だぜ！`);
+        homeShowMenu();
+        // speechText設定後にupdateHomeTodayInfoを呼ぶ
+        setTimeout(() => updateHomeTodayInfo(), 600);
+      }, delay);
+    }
+
+    function homeBackToMenu() {
+      homeState = 'menu';
+      homeSetRandomDogImage('normal');
+      const now = new Date();
+      const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+      const todayStr = `${now.getMonth() + 1}/${now.getDate()}(${dayNames[now.getDay()]})`;
+      homeSetSpeechText(`今日は <span class="highlight">${todayStr}</span> ！<br>担当は <span class="highlight" id="homeTodayPerson">-</span>だぜ！`);
+      homeShowMenu();
+      // speechText設定後にupdateHomeTodayInfoを呼ぶ
+      setTimeout(() => updateHomeTodayInfo(), 600);
+    }
+
+    // 記録する
+    function homeStartRecord() {
+      homeState = 'record_type_select';
+      homeSetRandomDogImage('normal');
+      homeSetSpeechText('何を記録するんだ？');
+      homeHideAllAreas();
+      const el = document.getElementById('homeRecordTypeSelect');
+      if (el) { el.style.display = 'block'; el.classList.add('active'); }
+    }
+
+    function homeSelectRecordType(type) {
+      homeCurrentRecordType = type;
+      homeState = 'record_input';
+      const labels = {
+        condition: { label: '様子', placeholder: '今日の様子を入力...', speech: 'オレの様子はどうだ？' },
+        meal: { label: '食事', placeholder: '食事の内容を入力...', speech: '何を食べたんだ？' },
+        toilet: { label: 'トイレ', placeholder: 'トイレの状況を入力...', speech: 'トイレはどうだった？' }
+      };
+      const cfg = labels[type];
+      const labelEl = document.getElementById('homeRecordInputLabel');
+      const textEl = document.getElementById('homeRecordText');
+      if (labelEl) labelEl.textContent = cfg.label;
+      if (textEl) { textEl.placeholder = cfg.placeholder; textEl.value = ''; }
+      homeSetSpeechText(cfg.speech);
+      homeHideAllAreas();
+      homeSetCurrentTime();
+      const el = document.getElementById('homeRecordInput');
+      if (el) { el.style.display = 'block'; el.classList.add('active'); }
+    }
+
+    function homeBackToRecordType() {
+      homeState = 'record_type_select';
+      homeSetRandomDogImage('normal');
+      homeSetSpeechText('何を記録するんだ？');
+      homeHideAllAreas();
+      const el = document.getElementById('homeRecordTypeSelect');
+      if (el) { el.style.display = 'block'; el.classList.add('active'); }
+    }
+
+    async function homeSubmitRecord() {
+      const hour = document.getElementById('homeRecordHour')?.value;
+      const minute = document.getElementById('homeRecordMinute')?.value;
+      const text = document.getElementById('homeRecordText')?.value.trim();
+      if (!text) { alert('入力してくれ！'); return; }
+      homeState = 'record_saving';
+      const now = new Date();
+      const dateStr = formatDateForApi(now);
+      const recordData = {
+        recordDate: dateStr,
+        time: `${hour}:${minute}`,
+        condition: homeCurrentRecordType === 'condition' ? text : '',
+        meal: homeCurrentRecordType === 'meal' ? text : '',
+        toilet: homeCurrentRecordType === 'toilet' ? text : ''
+      };
+      const [_] = await Promise.all([
+        homeShowThinking(3000),
+        (async () => {
+          try {
+            const res = await fetch(`${API_BASE_URL}/records`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(recordData)
+            });
+            if (!res.ok) throw new Error('保存失敗');
+            homeState = 'record_done';
+            homeSetRandomDogImage('happy');
+            homeSetSpeechText('入力しといたぞ、<br>いつもありがとうな！');
+            homeHideAllAreas();
+            const textEl = document.getElementById('homeRecordText');
+            if (textEl) textEl.value = '';
+            homeReturnToMenu(3000);
+          } catch (e) {
+            homeState = 'record_error';
+            homeSetRandomDogImage('sad');
+            homeSetSpeechText('すまん、保存できなかった...<br>もう一回試してくれ！');
+            homeHideAllAreas();
+            homeReturnToMenu(3000);
+          }
+        })()
+      ]);
+    }
+
+    // スケジュール確認
+    function homeStartSchedule() {
+      homeState = 'schedule_ask';
+      homeSetRandomDogImage('normal');
+      homeSetSpeechText('いつの予定が知りたいんだ？');
+      homeHideAllAreas();
+      homeCalendarMonth = new Date();
+      homeSelectedCalendarDate = null;
+      homeRenderCalendar();
+      const el = document.getElementById('homeCalendarArea');
+      if (el) { el.style.display = 'block'; el.classList.add('active'); }
+    }
+
+    function homeRenderCalendar() {
+      const year = homeCalendarMonth.getFullYear();
+      const month = homeCalendarMonth.getMonth();
+      const titleEl = document.getElementById('homeCalendarTitle');
+      if (titleEl) titleEl.textContent = `${year}年${month + 1}月`;
+      const grid = document.getElementById('homeCalendarGrid');
+      if (!grid) return;
+      const firstDay = new Date(year, month, 1);
+      const lastDay = new Date(year, month + 1, 0);
+      const today = new Date();
+      let html = '';
+      ['日', '月', '火', '水', '木', '金', '土'].forEach(n => { html += `<div class="calendar-day-header">${n}</div>`; });
+      const startDow = firstDay.getDay();
+      const prevLastDay = new Date(year, month, 0).getDate();
+      for (let i = startDow - 1; i >= 0; i--) html += `<div class="calendar-day other-month">${prevLastDay - i}</div>`;
+      const todayStr = formatDateForApi(today);
+      const selectedStr = homeSelectedCalendarDate ? formatDateForApi(homeSelectedCalendarDate) : null;
+      for (let d = 1; d <= lastDay.getDate(); d++) {
+        const date = new Date(year, month, d);
+        const dateStr = formatDateForApi(date);
+        let cls = 'calendar-day';
+        if (dateStr === todayStr) cls += ' today';
+        if (dateStr === selectedStr) cls += ' selected';
+        html += `<div class="${cls}" onclick="homeSelectCalendarDate('${dateStr}')">${d}</div>`;
+      }
+      const endDow = lastDay.getDay();
+      for (let i = 1; i < 7 - endDow; i++) html += `<div class="calendar-day other-month">${i}</div>`;
+      grid.innerHTML = html;
+    }
+
+    function homeChangeCalendarMonth(delta) {
+      homeCalendarMonth.setMonth(homeCalendarMonth.getMonth() + delta);
+      homeRenderCalendar();
+    }
+
+    function homeSelectCalendarDate(dateStr) {
+      homeSelectedCalendarDate = new Date(dateStr + 'T00:00:00');
+      homeRenderCalendar();
+    }
+
+    async function homeConfirmCalendarSelection() {
+      if (!homeSelectedCalendarDate) { alert('日付を選んでくれ！'); return; }
+      homeState = 'schedule_loading';
+      const dateStr = formatDateForApi(homeSelectedCalendarDate);
+      const weekId = getWeekId(homeSelectedCalendarDate);
+      const [_, scheduleData] = await Promise.all([
+        homeShowThinking(3000),
+        (async () => {
+          try {
+            const res = await fetch(`${API_BASE_URL}/schedule/week/${weekId}`);
+            if (res.ok) return await res.json();
+          } catch (e) { console.error(e); }
+          return null;
+        })()
+      ]);
+      if (scheduleData) {
+        homeScheduleDataCache = scheduleData;
+        homeShowScheduleResult(dateStr, scheduleData);
+      } else {
+        homeState = 'schedule_error';
+        homeSetRandomDogImage('sad');
+        homeSetSpeechText('すまん、取得できなかった...');
+        homeHideAllAreas();
+        homeReturnToMenu(3000);
+      }
+    }
+
+    function homeShowScheduleResult(dateStr, data) {
+      homeState = 'schedule_show';
+      homeSetRandomDogImage('normal');
+      const date = new Date(dateStr + 'T00:00:00');
+      const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+      const dateDisplay = `${date.getMonth() + 1}/${date.getDate()}(${dayNames[date.getDay()]})`;
+      const timeSlots = ['allday', '09', '17', '21', '24'];
+      const timeLabels = { allday: '終日', '09': '9時', '17': '17時', '21': '21時', '24': '24時' };
+      let tableHtml = '<table class="schedule-table"><thead><tr><th>時間</th>';
+      familyMembers.forEach(m => { tableHtml += `<th>${m.displayName}</th>`; });
+      tableHtml += '</tr></thead><tbody>';
+      timeSlots.forEach(slot => {
+        tableHtml += `<tr><td>${timeLabels[slot]}</td>`;
+        familyMembers.forEach(member => {
+          const user = (data.users || []).find(u => u.userId === member.userId);
+          const key = `${dateStr}:${slot}`;
+          const avail = user && user.slots && user.slots[key];
+          tableHtml += `<td class="${avail ? 'available' : 'unavailable'}">${avail ? '◯' : '✕'}</td>`;
+        });
+        tableHtml += '</tr>';
+      });
+      tableHtml += '</tbody></table>';
+      homeSetSpeechText(`<span class="highlight">${dateDisplay}</span> の予定は<br>こんな感じだぜ！変更するか？`);
+      homeHideAllAreas();
+      const titleEl = document.getElementById('homeScheduleTitle');
+      const contentEl = document.getElementById('homeScheduleContent');
+      if (titleEl) titleEl.textContent = `${dateDisplay} の予定`;
+      if (contentEl) contentEl.innerHTML = tableHtml;
+      const display = document.getElementById('homeScheduleDisplay');
+      if (display) { display.style.display = 'block'; display.classList.add('active'); }
+      const choice = document.getElementById('homeChoiceButtons');
+      if (choice) {
+        choice.innerHTML = `
+          <button class="choice-btn primary" onclick="homeStartScheduleEdit('${dateStr}')">変更したい！</button>
+          <button class="choice-btn" onclick="homeConfirmScheduleDone()">そのままで！</button>
+          <button class="back-btn" onclick="homeBackToCalendar()">別の日を確認</button>
+        `;
+        choice.style.display = 'flex';
+        choice.classList.add('active');
+      }
+    }
+
+    function homeBackToCalendar() {
+      homeState = 'schedule_ask';
+      homeSetRandomDogImage('normal');
+      homeSetSpeechText('いつの予定が知りたいんだ？');
+      homeHideAllAreas();
+      homeRenderCalendar();
+      const el = document.getElementById('homeCalendarArea');
+      if (el) { el.style.display = 'block'; el.classList.add('active'); }
+    }
+
+    function homeBackToScheduleDisplay() {
+      homeState = 'schedule_show';
+      homeSetRandomDogImage('normal');
+      const dateStr = formatDateForApi(homeSelectedCalendarDate);
+      homeShowScheduleResult(dateStr, homeScheduleDataCache);
+    }
+
+    function homeConfirmScheduleDone() {
+      homeState = 'schedule_done';
+      homeSetRandomDogImage('happy');
+      homeSetSpeechText('確認できたんだな！<br>いつもありがとうな！');
+      homeHideAllAreas();
+      homeReturnToMenu(3000);
+    }
+
+    function homeStartScheduleEdit(dateStr) {
+      homeState = 'schedule_edit';
+      homeSetRandomDogImage('normal');
+      const date = new Date(dateStr + 'T00:00:00');
+      const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+      const dateDisplay = `${date.getMonth() + 1}/${date.getDate()}(${dayNames[date.getDay()]})`;
+      homeSetSpeechText(`${dateDisplay} の予定を変更するぜ！<br>誰の予定を変えるんだ？`);
+      homeHideAllAreas();
+      let html = '<div style="margin-bottom:16px">';
+      html += '<label style="display:block;font-size:13px;color:#666;margin-bottom:8px;font-weight:600">メンバーを選択</label>';
+      html += `<select id="homeEditMember" style="width:100%;padding:12px;border:2px solid #e0e0e0;border-radius:8px;font-size:14px" onchange="homeShowMemberSlots('${dateStr}')">`;
+      html += '<option value="">選んでくれ</option>';
+      familyMembers.forEach(m => { html += `<option value="${m.userId}">${m.displayName}</option>`; });
+      html += '</select></div><div id="homeMemberSlots"></div>';
+      const editContent = document.getElementById('homeScheduleEditContent');
+      if (editContent) editContent.innerHTML = html;
+      const edit = document.getElementById('homeScheduleEdit');
+      if (edit) { edit.style.display = 'block'; edit.classList.add('active'); }
+    }
+
+    function homeShowMemberSlots(dateStr) {
+      const userId = document.getElementById('homeEditMember')?.value;
+      const slotsEl = document.getElementById('homeMemberSlots');
+      if (!userId || !slotsEl) { if (slotsEl) slotsEl.innerHTML = ''; return; }
+      const user = (homeScheduleDataCache.users || []).find(u => u.userId === userId);
+      const timeSlots = ['allday', '09', '17', '21', '24'];
+      const timeLabels = { allday: '終日', '09': '9時', '17': '17時', '21': '21時', '24': '24時' };
+      let html = '<div class="home-slot-group">';
+      timeSlots.forEach(slot => {
+        const key = `${dateStr}:${slot}`;
+        const checked = user && user.slots && user.slots[key];
+        html += `<label class="home-slot-checkbox"><input type="checkbox" data-slot="${key}" ${checked ? 'checked' : ''}><span>${timeLabels[slot]}</span></label>`;
+      });
+      html += '</div>';
+      slotsEl.innerHTML = html;
+    }
+
+    async function homeSubmitScheduleEdit() {
+      const userId = document.getElementById('homeEditMember')?.value;
+      if (!userId) { alert('メンバーを選んでくれ！'); return; }
+      const member = familyMembers.find(m => m.userId === userId);
+      const checkboxes = document.querySelectorAll('#homeMemberSlots input[type="checkbox"]');
+      const slots = {};
+      checkboxes.forEach(cb => { slots[cb.dataset.slot] = cb.checked; });
+      homeState = 'schedule_saving';
+      const weekId = getWeekId(homeSelectedCalendarDate);
+      const user = (homeScheduleDataCache.users || []).find(u => u.userId === userId);
+      const existingSlots = user ? { ...user.slots } : {};
+      const mergedSlots = { ...existingSlots, ...slots };
+      const [_] = await Promise.all([
+        homeShowThinking(3000),
+        (async () => {
+          try {
+            const res = await fetch(`${API_BASE_URL}/schedule/submit`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                weekId, userId, displayName: member.displayName,
+                slots: mergedSlots, notes: user?.notes || {}
+              })
+            });
+            if (!res.ok) throw new Error('保存失敗');
+            homeState = 'schedule_edit_done';
+            homeSetRandomDogImage('happy');
+            homeSetSpeechText('予定を変更しといたぞ！<br>いつもありがとうな！');
+            homeHideAllAreas();
+            homeReturnToMenu(3000);
+          } catch (e) {
+            homeState = 'schedule_edit_error';
+            homeSetRandomDogImage('sad');
+            homeSetSpeechText('すまん、保存できなかった...<br>もう一回試してくれ！');
+            homeHideAllAreas();
+            homeReturnToMenu(3000);
+          }
+        })()
+      ]);
+    }
+
+    // オレの一言
+    // 犬の画像タップで一言表示
+    function homeDogTapped() {
+      if (homeState !== 'menu') return; // メニュー表示中のみ有効
+      homeState = 'hitokoto';
+      // 吹き出しのみ変更（画像はそのまま）
+      const hitokoto = homeHitokotoList[Math.floor(Math.random() * homeHitokotoList.length)];
+      homeSetSpeechText(hitokoto);
+      homeHideAllAreas();
+      // 3秒後に画像を変えてホームに戻る
+      setTimeout(() => {
+        homeBackToMenu();
+      }, 3000);
+    }
+
+    // ========== 知ってるチロル機能 ==========
+    let chirolSelectedTag = null;
+    let chirolCroppedImageData = null;
+
+    function homeStartChirolInfo() {
+      homeState = 'chirol_choice';
+      homeSetRandomDogImage('happy');
+      homeSetSpeechText('オレのこと、教えてくれるのか？<br>嬉しいぜ！');
+      homeHideAllAreas();
+      document.getElementById('chirolChoiceArea').classList.add('active');
+    }
+
+    function chirolStartHitokoto() {
+      homeState = 'chirol_hitokoto';
+      homeSetRandomDogImage('thinking');
+      homeSetSpeechText('オレに何を言わせたいんだ？');
+      homeHideAllAreas();
+      document.getElementById('chirolHitokotoArea').classList.add('active');
+      document.getElementById('chirolHitokotoText').value = '';
+      document.getElementById('chirolHitokotoCount').textContent = '0';
+    }
+
+    function chirolStartImage() {
+      homeState = 'chirol_image';
+      chirolSelectedTag = null;
+      chirolCroppedImageData = null;
+      homeSetRandomDogImage('happy');
+      homeSetSpeechText('オレのベストショットを<br>見せてくれ！');
+      homeHideAllAreas();
+      document.getElementById('chirolImageArea').classList.add('active');
+      document.getElementById('chirolImagePreview').classList.remove('active');
+      document.querySelector('.image-preview-container').classList.remove('has-image');
+      document.querySelectorAll('.tag-btn').forEach(b => b.classList.remove('selected'));
+      document.getElementById('chirolImageSubmitBtn').disabled = true;
+    }
+
+    function chirolCancel() {
+      homeState = 'chirol_cancel';
+      homeSetRandomDogImage('sad');
+      homeSetSpeechText('オレのこと、知らないのか？');
+      homeHideAllAreas();
+      homeReturnToMenu(3000);
+    }
+
+    function chirolBackToChoice() {
+      homeState = 'chirol_choice';
+      homeSetRandomDogImage('happy');
+      homeSetSpeechText('どっちにする？');
+      homeHideAllAreas();
+      document.getElementById('chirolChoiceArea').classList.add('active');
+    }
+
+    // 一言入力の文字数カウント
+    document.addEventListener('DOMContentLoaded', function() {
+      const textarea = document.getElementById('chirolHitokotoText');
+      if (textarea) {
+        textarea.addEventListener('input', function() {
+          document.getElementById('chirolHitokotoCount').textContent = this.value.length;
+        });
+      }
+    });
+
+    async function chirolSubmitHitokoto() {
+      const text = document.getElementById('chirolHitokotoText').value.trim();
+      if (!text) {
+        alert('一言を入力してくれ！');
+        return;
+      }
+
+      homeState = 'chirol_saving';
+      homeSetRandomDogImage('thinking');
+      homeSetSpeechText('ちょっと待ってくれ...');
+      homeHideAllAreas();
+      document.getElementById('homeProgressContainer').classList.add('active');
+
+      try {
+        const res = await fetch(`${API_BASE_URL}/chirol/hitokoto`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text })
+        });
+        if (!res.ok) throw new Error('保存失敗');
+
+        homeState = 'chirol_done';
+        document.getElementById('homeProgressContainer').classList.remove('active');
+        homeSetRandomDogImage('happy');
+        homeSetSpeechText('追加したぜ。<br>ありがとうな！');
+        homeReturnToMenu(3000);
+      } catch (e) {
+        console.error('Hitokoto save error:', e);
+        homeState = 'chirol_error';
+        document.getElementById('homeProgressContainer').classList.remove('active');
+        homeSetRandomDogImage('sad');
+        homeSetSpeechText('すまん、保存できなかった...<br>もう一回試してくれ！');
+        homeReturnToMenu(3000);
+      }
+    }
+
+    // 画像選択
+    function chirolImageSelected(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        openCropModal(e.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // タグ選択
+    function chirolSelectTag(tag) {
+      chirolSelectedTag = tag;
+      document.querySelectorAll('.tag-btn').forEach(b => {
+        b.classList.toggle('selected', b.dataset.tag === tag);
+      });
+      updateImageSubmitButton();
+    }
+
+    function updateImageSubmitButton() {
+      const canSubmit = chirolCroppedImageData && chirolSelectedTag;
+      document.getElementById('chirolImageSubmitBtn').disabled = !canSubmit;
+    }
+
+    // 画像切り抜きモーダル
+    let cropImage = null;
+    let cropStartX = 0, cropStartY = 0;
+    let cropSize = 200;
+
+    function openCropModal(imageSrc) {
+      const modal = document.getElementById('cropModal');
+      const canvas = document.getElementById('cropCanvas');
+      const ctx = canvas.getContext('2d');
+
+      cropImage = new Image();
+      cropImage.onload = function() {
+        // キャンバスサイズを設定
+        const maxSize = Math.min(window.innerWidth - 40, window.innerHeight - 200);
+        const scale = Math.min(maxSize / cropImage.width, maxSize / cropImage.height);
+        canvas.width = cropImage.width * scale;
+        canvas.height = cropImage.height * scale;
+
+        // 正方形のサイズを決定（短辺の80%）
+        cropSize = Math.min(canvas.width, canvas.height) * 0.8;
+        cropStartX = (canvas.width - cropSize) / 2;
+        cropStartY = (canvas.height - cropSize) / 2;
+
+        drawCropCanvas();
+        modal.classList.add('active');
+
+        // タッチ/ドラッグイベント
+        canvas.addEventListener('mousedown', startCropDrag);
+        canvas.addEventListener('touchstart', startCropDrag, { passive: false });
+      };
+      cropImage.src = imageSrc;
+    }
+
+    function drawCropCanvas() {
+      const canvas = document.getElementById('cropCanvas');
+      const ctx = canvas.getContext('2d');
+
+      // 背景をクリア
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // 画像を描画
+      ctx.drawImage(cropImage, 0, 0, canvas.width, canvas.height);
+
+      // 暗いオーバーレイ
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // 切り抜き領域を明るく
+      ctx.clearRect(cropStartX, cropStartY, cropSize, cropSize);
+      ctx.drawImage(cropImage,
+        cropStartX / canvas.width * cropImage.width,
+        cropStartY / canvas.height * cropImage.height,
+        cropSize / canvas.width * cropImage.width,
+        cropSize / canvas.height * cropImage.height,
+        cropStartX, cropStartY, cropSize, cropSize
+      );
+
+      // 枠線
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(cropStartX, cropStartY, cropSize, cropSize);
+
+      // グリッド線（3分割）
+      ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+      ctx.lineWidth = 1;
+      const third = cropSize / 3;
+      ctx.beginPath();
+      ctx.moveTo(cropStartX + third, cropStartY);
+      ctx.lineTo(cropStartX + third, cropStartY + cropSize);
+      ctx.moveTo(cropStartX + third * 2, cropStartY);
+      ctx.lineTo(cropStartX + third * 2, cropStartY + cropSize);
+      ctx.moveTo(cropStartX, cropStartY + third);
+      ctx.lineTo(cropStartX + cropSize, cropStartY + third);
+      ctx.moveTo(cropStartX, cropStartY + third * 2);
+      ctx.lineTo(cropStartX + cropSize, cropStartY + third * 2);
+      ctx.stroke();
+    }
+
+    let isDragging = false;
+    let dragStartX, dragStartY;
+
+    function startCropDrag(e) {
+      e.preventDefault();
+      isDragging = true;
+      const pos = getEventPos(e);
+      dragStartX = pos.x - cropStartX;
+      dragStartY = pos.y - cropStartY;
+
+      document.addEventListener('mousemove', moveCropDrag);
+      document.addEventListener('mouseup', endCropDrag);
+      document.addEventListener('touchmove', moveCropDrag, { passive: false });
+      document.addEventListener('touchend', endCropDrag);
+    }
+
+    function moveCropDrag(e) {
+      if (!isDragging) return;
+      e.preventDefault();
+      const canvas = document.getElementById('cropCanvas');
+      const pos = getEventPos(e);
+
+      cropStartX = Math.max(0, Math.min(canvas.width - cropSize, pos.x - dragStartX));
+      cropStartY = Math.max(0, Math.min(canvas.height - cropSize, pos.y - dragStartY));
+
+      drawCropCanvas();
+    }
+
+    function endCropDrag() {
+      isDragging = false;
+      document.removeEventListener('mousemove', moveCropDrag);
+      document.removeEventListener('mouseup', endCropDrag);
+      document.removeEventListener('touchmove', moveCropDrag);
+      document.removeEventListener('touchend', endCropDrag);
+    }
+
+    function getEventPos(e) {
+      const canvas = document.getElementById('cropCanvas');
+      const rect = canvas.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return {
+        x: clientX - rect.left,
+        y: clientY - rect.top
+      };
+    }
+
+    function closeCropModal() {
+      document.getElementById('cropModal').classList.remove('active');
+      document.getElementById('chirolImageInput').value = '';
+    }
+
+    function confirmCrop() {
+      const canvas = document.getElementById('cropCanvas');
+
+      // 切り抜き用の一時キャンバス
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = 400;
+      tempCanvas.height = 400;
+      const tempCtx = tempCanvas.getContext('2d');
+
+      // 元画像から切り抜き領域を計算
+      const scaleX = cropImage.width / canvas.width;
+      const scaleY = cropImage.height / canvas.height;
+
+      tempCtx.drawImage(cropImage,
+        cropStartX * scaleX, cropStartY * scaleY,
+        cropSize * scaleX, cropSize * scaleY,
+        0, 0, 400, 400
+      );
+
+      chirolCroppedImageData = tempCanvas.toDataURL('image/jpeg', 0.9);
+
+      // プレビューに表示
+      const preview = document.getElementById('chirolImagePreview');
+      preview.src = chirolCroppedImageData;
+      preview.classList.add('active');
+      document.querySelector('.image-preview-container').classList.add('has-image');
+
+      closeCropModal();
+      updateImageSubmitButton();
+    }
+
+    async function chirolSubmitImage() {
+      if (!chirolCroppedImageData || !chirolSelectedTag) {
+        alert('画像とタグを選択してくれ！');
+        return;
+      }
+
+      homeState = 'chirol_saving';
+      homeSetRandomDogImage('thinking');
+      homeSetSpeechText('アップロード中だぜ...');
+      homeHideAllAreas();
+      document.getElementById('homeProgressContainer').classList.add('active');
+
+      try {
+        const res = await fetch(`${API_BASE_URL}/chirol/images`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            imageData: chirolCroppedImageData,
+            tag: chirolSelectedTag
+          })
+        });
+        if (!res.ok) throw new Error('アップロード失敗');
+
+        homeState = 'chirol_done';
+        document.getElementById('homeProgressContainer').classList.remove('active');
+        homeSetRandomDogImage('happy');
+        homeSetSpeechText('追加したぜ。<br>カッコいいだろ？');
+        homeReturnToMenu(3000);
+      } catch (e) {
+        console.error('Image upload error:', e);
+        homeState = 'chirol_error';
+        document.getElementById('homeProgressContainer').classList.remove('active');
+        homeSetRandomDogImage('sad');
+        homeSetSpeechText('すまん、アップロードできなかった...<br>もう一回試してくれ！');
+        homeReturnToMenu(3000);
+      }
+    }
+
+    // homeHideAllAreasを更新して新しいエリアも含める
+    const originalHomeHideAllAreas = homeHideAllAreas;
+    homeHideAllAreas = function() {
+      originalHomeHideAllAreas();
+      document.getElementById('chirolChoiceArea')?.classList.remove('active');
+      document.getElementById('chirolHitokotoArea')?.classList.remove('active');
+      document.getElementById('chirolImageArea')?.classList.remove('active');
+    };
+
+    // 初期化実行
+    init();
+  </script>
+</body>
+</html>

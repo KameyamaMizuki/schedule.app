@@ -1,0 +1,17 @@
+# CloudFormation package時に除外するファイル
+src/
+web/
+.git/
+.gitignore
+.claude/
+*.md
+*.json
+!package.json
+*.yaml
+!template.yaml
+*.zip
+*.tar.gz
+*.sh
+test*
+create-test-history.js
+insert-test-data.sh

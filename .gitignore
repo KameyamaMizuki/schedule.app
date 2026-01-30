@@ -1,0 +1,50 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+.aws-sam/
+deploy/
+lambda-deploy/
+lambda-test/
+
+# Environment variables
+.env
+.env.local
+credentials.json
+
+# IDE
+.vscode/
+.idea/
+.claude/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# SAM
+samconfig.toml
+packaged.yaml
+
+# Lambda packages
+*.zip
+
+# Temporary and test files
+response*.json
+payload.json
+nul
+/tmp/
+test-*.js
+test-*.json
+create-test-*.js
+create-dummy-*.js
+insert-test-*.sh
+package-*.js
+send-*.ts
+maintenance-*.json

@@ -1,0 +1,1324 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>ホーム</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(180deg, #e8f5e9 0%, #fff8e1 100%);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ヘッダー（明るいグリーン系グラデーション） */
+    .header {
+      background: linear-gradient(135deg, #81c784 0%, #aed581 100%);
+      color: #fff;
+      padding: 14px;
+      text-align: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .header h1 {
+      font-size: 17px;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+    }
+
+    /* メインコンテナ */
+    .home-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+      max-width: 400px;
+      margin: 0 auto;
+    }
+
+    /* 犬の画像エリア */
+    .dog-area {
+      position: relative;
+      margin-bottom: 10px;
+    }
+
+    .dog-image {
+      width: 200px;
+      height: 200px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 4px solid #fff;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      animation: swing 2s ease-in-out infinite;
+      transition: opacity 0.5s ease;
+    }
+
+    .dog-image.fade-out {
+      opacity: 0;
+    }
+
+    @keyframes swing {
+      0%, 100% { transform: rotate(-5deg); }
+      50% { transform: rotate(5deg); }
+    }
+
+    /* 吹き出し */
+    .speech-bubble {
+      position: relative;
+      background: #fff;
+      border-radius: 16px;
+      padding: 16px 20px;
+      margin-top: 15px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      max-width: 300px;
+      text-align: center;
+      transition: opacity 0.5s ease;
+    }
+
+    .speech-bubble::before {
+      content: '';
+      position: absolute;
+      top: -10px;
+      left: 50%;
+      transform: translateX(-50%);
+      border-left: 10px solid transparent;
+      border-right: 10px solid transparent;
+      border-bottom: 10px solid #fff;
+    }
+
+    .speech-bubble p {
+      font-size: 15px;
+      line-height: 1.6;
+      color: #333;
+      font-weight: 500;
+    }
+
+    .speech-bubble .highlight {
+      color: #43a047;
+      font-weight: 700;
+    }
+
+    .speech-bubble.fade-out {
+      opacity: 0;
+    }
+
+    /* メニューボタン */
+    .menu-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 100%;
+      max-width: 280px;
+      margin-top: 20px;
+    }
+
+    .menu-btn {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 14px 20px;
+      background: #fff;
+      border: none;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 600;
+      color: #333;
+      transition: all 0.2s ease;
+    }
+
+    .menu-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    }
+
+    .menu-btn:active {
+      transform: translateY(0);
+    }
+
+    .menu-btn .icon {
+      font-size: 20px;
+      margin-right: 12px;
+    }
+
+    .menu-btn.record { border-left: 4px solid #ff9a9e; }
+    .menu-btn.schedule { border-left: 4px solid #667eea; }
+    .menu-btn.hitokoto { border-left: 4px solid #ffd54f; }
+
+    /* プログレスバー（考え中用） */
+    .progress-container {
+      display: none;
+      width: 100%;
+      max-width: 280px;
+      margin-top: 20px;
+    }
+
+    .progress-container.active {
+      display: block;
+    }
+
+    .progress-bar {
+      height: 8px;
+      background: #e0e0e0;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .progress-bar-inner {
+      height: 100%;
+      background: linear-gradient(90deg, #81c784, #aed581);
+      border-radius: 4px;
+      animation: progress 3s ease-in-out;
+    }
+
+    @keyframes progress {
+      0% { width: 0%; }
+      100% { width: 100%; }
+    }
+
+    .progress-text {
+      text-align: center;
+      font-size: 13px;
+      color: #666;
+      margin-top: 8px;
+    }
+
+    /* 入力フォームエリア */
+    .input-area {
+      display: none;
+      width: 100%;
+      max-width: 300px;
+      margin-top: 15px;
+    }
+
+    .input-area.active {
+      display: block;
+    }
+
+    .input-area .form-group {
+      margin-bottom: 12px;
+    }
+
+    .input-area label {
+      display: block;
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+
+    .input-area input,
+    .input-area textarea,
+    .input-area select {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: border-color 0.2s;
+    }
+
+    .input-area input:focus,
+    .input-area textarea:focus,
+    .input-area select:focus {
+      outline: none;
+      border-color: #81c784;
+    }
+
+    .input-area textarea {
+      min-height: 80px;
+      resize: vertical;
+    }
+
+    .time-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .time-row select {
+      flex: 1;
+    }
+
+    .submit-btn {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #81c784 0%, #aed581 100%);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+
+    .submit-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+
+    .back-btn {
+      width: 100%;
+      padding: 12px;
+      background: #fff;
+      color: #666;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: all 0.2s;
+    }
+
+    .back-btn:hover {
+      background: #f5f5f5;
+      border-color: #ccc;
+    }
+
+    /* 記録タイプ選択ボタン */
+    .record-type-buttons {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .record-type-btn {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px 12px;
+      background: #fff;
+      border: 2px solid #e0e0e0;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .record-type-btn:hover {
+      border-color: #81c784;
+      background: #f1f8e9;
+    }
+
+    .record-type-btn .icon {
+      font-size: 24px;
+      margin-bottom: 6px;
+    }
+
+    .record-type-btn span:last-child {
+      font-size: 13px;
+      font-weight: 600;
+      color: #333;
+    }
+
+    /* 選択肢ボタン（確認後） */
+    .choice-buttons {
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+      width: 100%;
+      max-width: 280px;
+      margin-top: 15px;
+    }
+
+    .choice-buttons.active {
+      display: flex;
+    }
+
+    .choice-btn {
+      padding: 12px 20px;
+      background: #fff;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .choice-btn:hover {
+      border-color: #81c784;
+      background: #f1f8e9;
+    }
+
+    .choice-btn.primary {
+      background: linear-gradient(135deg, #81c784 0%, #aed581 100%);
+      color: #fff;
+      border: none;
+    }
+
+    /* カレンダー選択エリア */
+    .calendar-area {
+      display: none;
+      width: 100%;
+      max-width: 300px;
+      margin-top: 15px;
+      background: #fff;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .calendar-area.active {
+      display: block;
+    }
+
+    .calendar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .calendar-header h3 {
+      font-size: 14px;
+      color: #333;
+    }
+
+    .calendar-nav-btn {
+      background: #81c784;
+      color: #fff;
+      border: none;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+    }
+
+    .calendar-day-header {
+      text-align: center;
+      font-size: 11px;
+      color: #999;
+      padding: 4px 0;
+    }
+
+    .calendar-day {
+      text-align: center;
+      padding: 8px 4px;
+      font-size: 13px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .calendar-day:hover {
+      background: #f5f5f5;
+    }
+
+    .calendar-day.selected {
+      background: #81c784;
+      color: #fff;
+    }
+
+    .calendar-day.today {
+      font-weight: 700;
+      color: #43a047;
+    }
+
+    .calendar-day.other-month {
+      color: #ccc;
+    }
+
+    .calendar-confirm-btn {
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(135deg, #81c784 0%, #aed581 100%);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 12px;
+    }
+
+    /* スケジュール表示エリア */
+    .schedule-display {
+      display: none;
+      width: 100%;
+      max-width: 300px;
+      margin-top: 15px;
+      background: #fff;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .schedule-display.active {
+      display: block;
+    }
+
+    .schedule-display h4 {
+      font-size: 14px;
+      color: #333;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #81c784;
+    }
+
+    .schedule-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    .schedule-table th,
+    .schedule-table td {
+      padding: 8px 4px;
+      text-align: center;
+      border: 1px solid #e0e0e0;
+    }
+
+    .schedule-table th {
+      background: #f5f5f5;
+      font-weight: 600;
+    }
+
+    .schedule-table td.available {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+
+    .schedule-table td.unavailable {
+      background: #ffebee;
+      color: #c62828;
+    }
+
+    /* スケジュール編集エリア */
+    .schedule-edit {
+      display: none;
+      width: 100%;
+      max-width: 300px;
+      margin-top: 15px;
+    }
+
+    .schedule-edit.active {
+      display: block;
+    }
+
+    .slot-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .slot-checkbox {
+      display: flex;
+      align-items: center;
+      padding: 8px 12px;
+      background: #f5f5f5;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .slot-checkbox input {
+      width: 18px;
+      height: 18px;
+      margin-right: 6px;
+    }
+
+    .slot-checkbox input:checked + span {
+      color: #43a047;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>ホーム</h1>
+  </div>
+
+  <div class="home-container">
+    <!-- 犬の画像 -->
+    <div class="dog-area">
+      <img id="dogImage" class="dog-image" src="images/dog/normal/IMG_3707.webp" alt="犬">
+    </div>
+
+    <!-- 吹き出し -->
+    <div id="speechBubble" class="speech-bubble">
+      <p id="speechText">今日は <span class="highlight" id="todayDate">1/21(火)</span> ！<br>担当は <span class="highlight" id="todayPerson">瑞季（9時〜）</span>だぜ！</p>
+    </div>
+
+    <!-- プログレスバー -->
+    <div id="progressContainer" class="progress-container">
+      <div class="progress-bar">
+        <div class="progress-bar-inner"></div>
+      </div>
+      <p class="progress-text">ちょっと待ってくれ...</p>
+    </div>
+
+    <!-- メニューボタン -->
+    <div id="menuButtons" class="menu-buttons">
+      <button class="menu-btn record" onclick="startRecord()">
+        <span class="icon">📝</span>
+        <span>様子を記録する</span>
+      </button>
+      <button class="menu-btn schedule" onclick="startSchedule()">
+        <span class="icon">📅</span>
+        <span>スケジュールを確認</span>
+      </button>
+      <button class="menu-btn hitokoto" onclick="showHitokoto()">
+        <span class="icon">💬</span>
+        <span>オレの一言</span>
+      </button>
+    </div>
+
+    <!-- 記録タイプ選択エリア -->
+    <div id="recordTypeSelect" class="input-area">
+      <div class="record-type-buttons">
+        <button class="record-type-btn" onclick="selectRecordType('condition')">
+          <span class="icon">🐕</span>
+          <span>様子</span>
+        </button>
+        <button class="record-type-btn" onclick="selectRecordType('meal')">
+          <span class="icon">🍚</span>
+          <span>食事</span>
+        </button>
+        <button class="record-type-btn" onclick="selectRecordType('toilet')">
+          <span class="icon">🚽</span>
+          <span>トイレ</span>
+        </button>
+      </div>
+      <button class="back-btn" onclick="backToHome()">戻る</button>
+    </div>
+
+    <!-- 記録入力エリア -->
+    <div id="recordInput" class="input-area">
+      <div class="form-group">
+        <label>時間</label>
+        <div class="time-row">
+          <select id="recordHour"></select>
+          <select id="recordMinute"></select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label id="recordInputLabel">様子</label>
+        <textarea id="recordText" placeholder="入力してくれ..."></textarea>
+      </div>
+      <button class="submit-btn" onclick="submitRecord()">記録する</button>
+      <button class="back-btn" onclick="backToRecordType()">戻る</button>
+    </div>
+
+    <!-- 選択肢ボタン -->
+    <div id="choiceButtons" class="choice-buttons">
+      <!-- 動的に生成 -->
+    </div>
+
+    <!-- カレンダー選択エリア -->
+    <div id="calendarArea" class="calendar-area">
+      <div class="calendar-header">
+        <button class="calendar-nav-btn" onclick="changeCalendarMonth(-1)">◀</button>
+        <h3 id="calendarTitle">2024年1月</h3>
+        <button class="calendar-nav-btn" onclick="changeCalendarMonth(1)">▶</button>
+      </div>
+      <div class="calendar-grid" id="calendarGrid"></div>
+      <button class="calendar-confirm-btn" onclick="confirmCalendarSelection()">この日を確認する</button>
+      <button class="back-btn" onclick="backToHome()">戻る</button>
+    </div>
+
+    <!-- スケジュール表示エリア -->
+    <div id="scheduleDisplay" class="schedule-display">
+      <h4 id="scheduleTitle">1/22(水) の予定</h4>
+      <div id="scheduleContent"></div>
+    </div>
+
+    <!-- スケジュール編集エリア -->
+    <div id="scheduleEdit" class="schedule-edit">
+      <div id="scheduleEditContent"></div>
+      <button class="submit-btn" onclick="submitScheduleEdit()">変更を保存する</button>
+      <button class="back-btn" onclick="backToScheduleDisplay()">戻る</button>
+    </div>
+  </div>
+
+  <script>
+    // ========== 設定 ==========
+    const API_BASE_URL = 'https://aqmin18fa2.execute-api.ap-northeast-1.amazonaws.com/prod';
+    const familyMembers = [
+      { userId: 'U687f86855c46490c030499f5393c8a7e', displayName: '瑞季' },
+      { userId: 'U4b13048aa2906b929c3139c4f3dfdd7c', displayName: '才子' },
+      { userId: 'Ua8420309a164fffdbdd7f300f4c1cc94', displayName: '桃寧' }
+    ];
+
+    // 犬の画像リスト
+    const dogImages = {
+      normal: [
+        'images/dog/normal/IMG_3707.webp',
+        'images/dog/normal/IMG_3708.webp',
+        'images/dog/normal/IMG_3709.webp',
+        'images/dog/normal/IMG_3710.webp',
+        'images/dog/normal/IMG_3711.webp',
+        'images/dog/normal/IMG_3714.webp',
+        'images/dog/normal/IMG_3715.webp',
+        'images/dog/normal/IMG_3717.webp',
+        'images/dog/normal/IMG_3719.webp',
+        'images/dog/normal/IMG_3725.webp',
+        'images/dog/normal/IMG_3726.webp',
+        'images/dog/normal/IMG_3733.webp'
+      ],
+      happy: [
+        'images/dog/happy/IMG_3713.webp',
+        'images/dog/happy/IMG_3716.webp',
+        'images/dog/happy/IMG_3723.webp',
+        'images/dog/happy/IMG_3724.webp',
+        'images/dog/happy/IMG_3732.webp'
+      ],
+      thinking: [
+        'images/dog/thinking/IMG_3727.webp',
+        'images/dog/thinking/IMG_3729.webp',
+        'images/dog/thinking/IMG_3730.webp',
+        'images/dog/thinking/IMG_3731.webp'
+      ],
+      sad: [
+        'images/dog/sad/IMG_3720.webp',
+        'images/dog/sad/IMG_3721.webp'
+      ]
+    };
+
+    // オレの一言リスト
+    const hitokotoList = [
+      'オレはチロル！好きなことはクン活だ！',
+      '食べたいものは変わるけど…大目に見ろよ！',
+      'みんなの笑顔が大好きなんだぜ！',
+      'オレは優しいから、みんなのそばにいるぞ！',
+      '小さい頃のことは…聞かないでくれよな…',
+      '広島出身、東京在住だ！すげーだろ！',
+      'ささみと芋、イチゴが最高なんだぞ～'
+    ];
+
+    // ========== 状態管理 ==========
+    let currentState = 'home';
+    let currentExpression = 'normal';
+    let calendarMonth = new Date();
+    let selectedCalendarDate = null;
+    let scheduleDataCache = {};
+    let currentRecordType = null; // 'condition', 'meal', 'toilet'
+
+    // ========== DOM要素 ==========
+    const dogImage = document.getElementById('dogImage');
+    const speechBubble = document.getElementById('speechBubble');
+    const speechText = document.getElementById('speechText');
+    const menuButtons = document.getElementById('menuButtons');
+    const progressContainer = document.getElementById('progressContainer');
+    const recordTypeSelect = document.getElementById('recordTypeSelect');
+    const recordInput = document.getElementById('recordInput');
+    const choiceButtons = document.getElementById('choiceButtons');
+    const calendarArea = document.getElementById('calendarArea');
+    const scheduleDisplay = document.getElementById('scheduleDisplay');
+    const scheduleEdit = document.getElementById('scheduleEdit');
+
+    // ========== 初期化 ==========
+    function init() {
+      initTimeSelectors();
+      updateTodayInfo();
+      setRandomDogImage('normal');
+    }
+
+    function initTimeSelectors() {
+      const hourSelect = document.getElementById('recordHour');
+      const minuteSelect = document.getElementById('recordMinute');
+
+      for (let h = 0; h < 24; h++) {
+        const option = document.createElement('option');
+        option.value = String(h).padStart(2, '0');
+        option.textContent = `${h}時`;
+        hourSelect.appendChild(option);
+      }
+
+      for (let m = 0; m < 60; m += 5) {
+        const option = document.createElement('option');
+        option.value = String(m).padStart(2, '0');
+        option.textContent = `${m}分`;
+        minuteSelect.appendChild(option);
+      }
+
+      setCurrentTime();
+    }
+
+    function setCurrentTime() {
+      const now = new Date();
+      document.getElementById('recordHour').value = String(now.getHours()).padStart(2, '0');
+      const minutes = Math.round(now.getMinutes() / 5) * 5;
+      document.getElementById('recordMinute').value = String(minutes % 60).padStart(2, '0');
+    }
+
+    async function updateTodayInfo() {
+      const now = new Date();
+      const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+      const todayStr = `${now.getMonth() + 1}/${now.getDate()}(${dayNames[now.getDay()]})`;
+      document.getElementById('todayDate').textContent = todayStr;
+
+      // 今日の担当者を取得
+      try {
+        const weekId = getWeekId(now);
+        const response = await fetch(`${API_BASE_URL}/schedule/week/${weekId}`);
+        if (response.ok) {
+          const data = await response.json();
+          const todayDateStr = formatDateStr(now);
+          const todayPerson = getTodayPerson(data, todayDateStr);
+          document.getElementById('todayPerson').textContent = todayPerson || '未定';
+        }
+      } catch (error) {
+        console.error('Failed to load today info:', error);
+        document.getElementById('todayPerson').textContent = '取得中...';
+      }
+    }
+
+    function getWeekId(date) {
+      const d = new Date(date);
+      const day = d.getDay();
+      const daysFromMonday = (day === 0) ? 6 : (day - 1);
+      d.setDate(d.getDate() - daysFromMonday);
+      return formatDateStr(d);
+    }
+
+    function formatDateStr(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    function getTodayPerson(data, dateStr) {
+      const timeSlots = ['allday', '09', '17', '21', '24'];
+      const timeLabels = { allday: '終日', '09': '9時〜', '17': '17時〜', '21': '21時〜', '24': '24時〜' };
+
+      // 各ユーザーの担当時間帯を収集
+      const assignments = [];
+      for (const user of data.users || []) {
+        const userSlots = [];
+        for (const slot of timeSlots) {
+          const key = `${dateStr}:${slot}`;
+          if (user.slots && user.slots[key]) {
+            userSlots.push(slot);
+          }
+        }
+        if (userSlots.length > 0) {
+          assignments.push({ name: user.displayName, slots: userSlots });
+        }
+      }
+
+      if (assignments.length === 0) return null;
+
+      // 全員終日かチェック
+      const allAllday = assignments.every(a => a.slots.includes('allday') && a.slots.length === 1);
+      if (allAllday) {
+        // 全員終日: 「AとB（終日）」
+        const names = assignments.map(a => a.name).join('と');
+        return `${names}（終日）`;
+      }
+
+      // 個別に表示
+      const parts = assignments.map(a => {
+        if (a.slots.includes('allday')) {
+          // この人は終日
+          return a.name;
+        } else {
+          // 最初の時間帯を表示
+          const firstSlot = a.slots[0];
+          return `${a.name}（${timeLabels[firstSlot]}）`;
+        }
+      });
+
+      return parts.join('と');
+    }
+
+    // ========== 犬の画像制御 ==========
+    function setRandomDogImage(expression) {
+      const images = dogImages[expression];
+      const randomImage = images[Math.floor(Math.random() * images.length)];
+      changeDogImage(randomImage, expression);
+    }
+
+    function changeDogImage(src, expression) {
+      if (currentExpression === expression && dogImage.src.includes(src)) return;
+
+      dogImage.classList.add('fade-out');
+
+      setTimeout(() => {
+        dogImage.src = src;
+        currentExpression = expression;
+        dogImage.classList.remove('fade-out');
+      }, 500);
+    }
+
+    // ========== UI制御 ==========
+    function hideAllAreas() {
+      menuButtons.style.display = 'none';
+      progressContainer.classList.remove('active');
+      recordTypeSelect.classList.remove('active');
+      recordInput.classList.remove('active');
+      choiceButtons.classList.remove('active');
+      calendarArea.classList.remove('active');
+      scheduleDisplay.classList.remove('active');
+      scheduleEdit.classList.remove('active');
+    }
+
+    function showMenu() {
+      hideAllAreas();
+      menuButtons.style.display = 'flex';
+    }
+
+    function setSpeechText(text) {
+      speechBubble.classList.add('fade-out');
+      setTimeout(() => {
+        speechText.innerHTML = text;
+        speechBubble.classList.remove('fade-out');
+      }, 500);
+    }
+
+    async function showThinking(minDuration = 3000) {
+      hideAllAreas();
+      setRandomDogImage('thinking');
+      setSpeechText('ちょっと待ってくれ...');
+      progressContainer.classList.add('active');
+
+      // プログレスバーをリセット
+      const bar = progressContainer.querySelector('.progress-bar-inner');
+      bar.style.animation = 'none';
+      bar.offsetHeight; // reflow
+      bar.style.animation = `progress ${minDuration}ms ease-in-out`;
+
+      return new Promise(resolve => setTimeout(resolve, minDuration));
+    }
+
+    function returnToHome(delay = 3000) {
+      setTimeout(() => {
+        currentState = 'home';
+        setRandomDogImage('normal');
+        const now = new Date();
+        const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+        const todayStr = `${now.getMonth() + 1}/${now.getDate()}(${dayNames[now.getDay()]})`;
+        setSpeechText(`今日は <span class="highlight">${todayStr}</span> ！<br>担当は <span class="highlight" id="todayPerson">-</span>だぜ！`);
+        showMenu();
+        // speechText設定後にupdateTodayInfoを呼ぶ
+        setTimeout(() => updateTodayInfo(), 600);
+      }, delay);
+    }
+
+    // ========== 様子を記録する ==========
+    function startRecord() {
+      currentState = 'record_type_select';
+      setRandomDogImage('normal');
+      setSpeechText('何を記録するんだ？');
+      hideAllAreas();
+      recordTypeSelect.classList.add('active');
+    }
+
+    function selectRecordType(type) {
+      currentRecordType = type;
+      currentState = 'record_input';
+
+      const typeLabels = {
+        condition: { label: '様子', placeholder: '今日の様子を入力...', speech: 'オレの様子はどうだ？' },
+        meal: { label: '食事', placeholder: '食事の内容を入力...', speech: '何を食べたんだ？' },
+        toilet: { label: 'トイレ', placeholder: 'トイレの状況を入力...', speech: 'トイレはどうだった？' }
+      };
+
+      const config = typeLabels[type];
+      document.getElementById('recordInputLabel').textContent = config.label;
+      document.getElementById('recordText').placeholder = config.placeholder;
+      document.getElementById('recordText').value = '';
+
+      setSpeechText(config.speech);
+      hideAllAreas();
+      setCurrentTime();
+      recordInput.classList.add('active');
+    }
+
+    function backToHome() {
+      currentState = 'home';
+      setRandomDogImage('normal');
+      const now = new Date();
+      const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+      const todayStr = `${now.getMonth() + 1}/${now.getDate()}(${dayNames[now.getDay()]})`;
+      setSpeechText(`今日は <span class="highlight">${todayStr}</span> ！<br>担当は <span class="highlight" id="todayPerson">-</span>だぜ！`);
+      showMenu();
+      // speechText設定後にupdateTodayInfoを呼ぶ
+      setTimeout(() => updateTodayInfo(), 600);
+    }
+
+    function backToRecordType() {
+      currentState = 'record_type_select';
+      setRandomDogImage('normal');
+      setSpeechText('何を記録するんだ？');
+      hideAllAreas();
+      recordTypeSelect.classList.add('active');
+    }
+
+    async function submitRecord() {
+      const hour = document.getElementById('recordHour').value;
+      const minute = document.getElementById('recordMinute').value;
+      const text = document.getElementById('recordText').value.trim();
+
+      if (!text) {
+        alert('入力してくれ！');
+        return;
+      }
+
+      currentState = 'record_saving';
+
+      // 最低3秒の待機＋API呼び出し
+      const [thinkingDone] = await Promise.all([
+        showThinking(3000),
+        saveRecord(hour, minute, text)
+      ]);
+    }
+
+    async function saveRecord(hour, minute, text) {
+      const now = new Date();
+      const dateStr = formatDateStr(now);
+
+      // 記録タイプに応じてフィールドを設定
+      const recordData = {
+        recordDate: dateStr,
+        time: `${hour}:${minute}`,
+        condition: currentRecordType === 'condition' ? text : '',
+        meal: currentRecordType === 'meal' ? text : '',
+        toilet: currentRecordType === 'toilet' ? text : ''
+      };
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/records`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(recordData)
+        });
+
+        if (!response.ok) throw new Error('保存失敗');
+
+        // 成功
+        currentState = 'record_done';
+        setRandomDogImage('happy');
+        setSpeechText('入力しといたぞ、<br>いつもありがとうな！');
+        hideAllAreas();
+        document.getElementById('recordText').value = '';
+        returnToHome(3000);
+
+      } catch (error) {
+        // 失敗
+        currentState = 'record_error';
+        setRandomDogImage('sad');
+        setSpeechText('すまん、保存できなかった...<br>もう一回試してくれ！');
+        hideAllAreas();
+        returnToHome(3000);
+      }
+    }
+
+    // ========== スケジュールを確認 ==========
+    function startSchedule() {
+      currentState = 'schedule_ask';
+      setRandomDogImage('normal');
+      setSpeechText('いつの予定が知りたいんだ？');
+      hideAllAreas();
+      calendarMonth = new Date();
+      selectedCalendarDate = null;
+      renderCalendar();
+      calendarArea.classList.add('active');
+    }
+
+    function renderCalendar() {
+      const year = calendarMonth.getFullYear();
+      const month = calendarMonth.getMonth();
+      document.getElementById('calendarTitle').textContent = `${year}年${month + 1}月`;
+
+      const grid = document.getElementById('calendarGrid');
+      const firstDay = new Date(year, month, 1);
+      const lastDay = new Date(year, month + 1, 0);
+      const today = new Date();
+
+      let html = '';
+      const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+      dayNames.forEach(name => {
+        html += `<div class="calendar-day-header">${name}</div>`;
+      });
+
+      // 前月の日
+      const startDayOfWeek = firstDay.getDay();
+      const prevMonthLastDay = new Date(year, month, 0).getDate();
+      for (let i = startDayOfWeek - 1; i >= 0; i--) {
+        html += `<div class="calendar-day other-month">${prevMonthLastDay - i}</div>`;
+      }
+
+      // 当月の日
+      const todayStr = formatDateStr(today);
+      const selectedStr = selectedCalendarDate ? formatDateStr(selectedCalendarDate) : null;
+
+      for (let day = 1; day <= lastDay.getDate(); day++) {
+        const date = new Date(year, month, day);
+        const dateStr = formatDateStr(date);
+        const isToday = dateStr === todayStr;
+        const isSelected = dateStr === selectedStr;
+
+        let classes = 'calendar-day';
+        if (isToday) classes += ' today';
+        if (isSelected) classes += ' selected';
+
+        html += `<div class="${classes}" onclick="selectCalendarDate('${dateStr}')">${day}</div>`;
+      }
+
+      // 次月の日
+      const endDayOfWeek = lastDay.getDay();
+      for (let i = 1; i < 7 - endDayOfWeek; i++) {
+        html += `<div class="calendar-day other-month">${i}</div>`;
+      }
+
+      grid.innerHTML = html;
+    }
+
+    function changeCalendarMonth(delta) {
+      calendarMonth.setMonth(calendarMonth.getMonth() + delta);
+      renderCalendar();
+    }
+
+    function selectCalendarDate(dateStr) {
+      selectedCalendarDate = new Date(dateStr + 'T00:00:00');
+      renderCalendar();
+    }
+
+    async function confirmCalendarSelection() {
+      if (!selectedCalendarDate) {
+        alert('日付を選んでくれ！');
+        return;
+      }
+
+      currentState = 'schedule_loading';
+
+      // 最低3秒の待機＋API呼び出し
+      const dateStr = formatDateStr(selectedCalendarDate);
+      const weekId = getWeekId(selectedCalendarDate);
+
+      const [thinkingDone, scheduleData] = await Promise.all([
+        showThinking(3000),
+        fetchSchedule(weekId)
+      ]);
+
+      if (scheduleData) {
+        scheduleDataCache = scheduleData;
+        showScheduleResult(dateStr, scheduleData);
+      } else {
+        currentState = 'schedule_error';
+        setRandomDogImage('sad');
+        setSpeechText('すまん、取得できなかった...');
+        hideAllAreas();
+        returnToHome(3000);
+      }
+    }
+
+    async function fetchSchedule(weekId) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/schedule/week/${weekId}`);
+        if (response.ok) {
+          return await response.json();
+        }
+      } catch (error) {
+        console.error('Failed to fetch schedule:', error);
+      }
+      return null;
+    }
+
+    function showScheduleResult(dateStr, data) {
+      currentState = 'schedule_show';
+      setRandomDogImage('normal');
+
+      const date = new Date(dateStr + 'T00:00:00');
+      const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+      const dateDisplay = `${date.getMonth() + 1}/${date.getDate()}(${dayNames[date.getDay()]})`;
+
+      // スケジュールテーブル作成
+      const timeSlots = ['allday', '09', '17', '21', '24'];
+      const timeLabels = { allday: '終日', '09': '9時', '17': '17時', '21': '21時', '24': '24時' };
+
+      let tableHtml = '<table class="schedule-table"><thead><tr><th>時間</th>';
+      familyMembers.forEach(m => {
+        tableHtml += `<th>${m.displayName}</th>`;
+      });
+      tableHtml += '</tr></thead><tbody>';
+
+      timeSlots.forEach(slot => {
+        tableHtml += `<tr><td>${timeLabels[slot]}</td>`;
+        familyMembers.forEach(member => {
+          const user = (data.users || []).find(u => u.userId === member.userId);
+          const key = `${dateStr}:${slot}`;
+          const isAvailable = user && user.slots && user.slots[key];
+          tableHtml += `<td class="${isAvailable ? 'available' : 'unavailable'}">${isAvailable ? '◯' : '✕'}</td>`;
+        });
+        tableHtml += '</tr>';
+      });
+      tableHtml += '</tbody></table>';
+
+      setSpeechText(`<span class="highlight">${dateDisplay}</span> の予定は<br>こんな感じだぜ！変更するか？`);
+      hideAllAreas();
+
+      document.getElementById('scheduleTitle').textContent = `${dateDisplay} の予定`;
+      document.getElementById('scheduleContent').innerHTML = tableHtml;
+      scheduleDisplay.classList.add('active');
+
+      // 選択肢ボタン
+      choiceButtons.innerHTML = `
+        <button class="choice-btn primary" onclick="startScheduleEdit('${dateStr}')">変更したい！</button>
+        <button class="choice-btn" onclick="confirmScheduleDone()">そのままで！</button>
+        <button class="back-btn" onclick="backToCalendar()">別の日を確認</button>
+      `;
+      choiceButtons.classList.add('active');
+    }
+
+    function backToCalendar() {
+      currentState = 'schedule_ask';
+      setRandomDogImage('normal');
+      setSpeechText('いつの予定が知りたいんだ？');
+      hideAllAreas();
+      renderCalendar();
+      calendarArea.classList.add('active');
+    }
+
+    function backToScheduleDisplay() {
+      currentState = 'schedule_show';
+      setRandomDogImage('normal');
+      const dateStr = formatDateStr(selectedCalendarDate);
+      showScheduleResult(dateStr, scheduleDataCache);
+    }
+
+    function confirmScheduleDone() {
+      currentState = 'schedule_done';
+      setRandomDogImage('happy');
+      setSpeechText('確認できたんだな！<br>いつもありがとうな！');
+      hideAllAreas();
+      returnToHome(3000);
+    }
+
+    function startScheduleEdit(dateStr) {
+      currentState = 'schedule_edit';
+      setRandomDogImage('normal');
+
+      const date = new Date(dateStr + 'T00:00:00');
+      const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+      const dateDisplay = `${date.getMonth() + 1}/${date.getDate()}(${dayNames[date.getDay()]})`;
+
+      setSpeechText(`${dateDisplay} の予定を変更するぜ！<br>誰の予定を変えるんだ？`);
+      hideAllAreas();
+
+      // メンバー選択
+      let html = '<div style="margin-bottom:16px">';
+      html += '<label style="display:block;font-size:13px;color:#666;margin-bottom:8px;font-weight:600">メンバーを選択</label>';
+      html += '<select id="editMember" style="width:100%;padding:12px;border:2px solid #e0e0e0;border-radius:8px;font-size:14px" onchange="showMemberSlots(\'' + dateStr + '\')">';
+      html += '<option value="">選んでくれ</option>';
+      familyMembers.forEach(m => {
+        html += `<option value="${m.userId}">${m.displayName}</option>`;
+      });
+      html += '</select></div>';
+      html += '<div id="memberSlots"></div>';
+
+      document.getElementById('scheduleEditContent').innerHTML = html;
+      scheduleEdit.classList.add('active');
+    }
+
+    function showMemberSlots(dateStr) {
+      const userId = document.getElementById('editMember').value;
+      if (!userId) {
+        document.getElementById('memberSlots').innerHTML = '';
+        return;
+      }
+
+      const user = (scheduleDataCache.users || []).find(u => u.userId === userId);
+      const timeSlots = ['allday', '09', '17', '21', '24'];
+      const timeLabels = { allday: '終日', '09': '9時', '17': '17時', '21': '21時', '24': '24時' };
+
+      let html = '<div class="slot-group">';
+      timeSlots.forEach(slot => {
+        const key = `${dateStr}:${slot}`;
+        const isChecked = user && user.slots && user.slots[key];
+        html += `<label class="slot-checkbox">
+          <input type="checkbox" data-slot="${key}" ${isChecked ? 'checked' : ''}>
+          <span>${timeLabels[slot]}</span>
+        </label>`;
+      });
+      html += '</div>';
+
+      document.getElementById('memberSlots').innerHTML = html;
+    }
+
+    async function submitScheduleEdit() {
+      const userId = document.getElementById('editMember').value;
+      if (!userId) {
+        alert('メンバーを選んでくれ！');
+        return;
+      }
+
+      const member = familyMembers.find(m => m.userId === userId);
+      const checkboxes = document.querySelectorAll('#memberSlots input[type="checkbox"]');
+      const slots = {};
+      checkboxes.forEach(cb => {
+        slots[cb.dataset.slot] = cb.checked;
+      });
+
+      currentState = 'schedule_saving';
+
+      const weekId = getWeekId(selectedCalendarDate);
+
+      const [thinkingDone] = await Promise.all([
+        showThinking(3000),
+        saveScheduleEdit(weekId, userId, member.displayName, slots)
+      ]);
+    }
+
+    async function saveScheduleEdit(weekId, userId, displayName, slots) {
+      try {
+        // 既存のスロットとマージ
+        const user = (scheduleDataCache.users || []).find(u => u.userId === userId);
+        const existingSlots = user ? { ...user.slots } : {};
+        const mergedSlots = { ...existingSlots, ...slots };
+
+        const response = await fetch(`${API_BASE_URL}/schedule/submit`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            weekId,
+            userId,
+            displayName,
+            slots: mergedSlots,
+            notes: user?.notes || {}
+          })
+        });
+
+        if (!response.ok) throw new Error('保存失敗');
+
+        currentState = 'schedule_edit_done';
+        setRandomDogImage('happy');
+        setSpeechText('予定を変更しといたぞ！<br>いつもありがとうな！');
+        hideAllAreas();
+        returnToHome(3000);
+
+      } catch (error) {
+        currentState = 'schedule_edit_error';
+        setRandomDogImage('sad');
+        setSpeechText('すまん、保存できなかった...<br>もう一回試してくれ！');
+        hideAllAreas();
+        returnToHome(3000);
+      }
+    }
+
+    // ========== オレの一言 ==========
+    function showHitokoto() {
+      currentState = 'hitokoto';
+      setRandomDogImage('normal');
+      const hitokoto = hitokotoList[Math.floor(Math.random() * hitokotoList.length)];
+      setSpeechText(hitokoto);
+      hideAllAreas();
+      returnToHome(3000);
+    }
+
+    // ========== 初期化実行 ==========
+    init();
+  </script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+{
+  "name": "family-schedule-linebot",
+  "version": "1.0.0",
+  "description": "Family schedule management LINE bot with LIFF",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest",
+    "lint": "eslint . --ext .ts",
+    "deploy": "npm run build && sam deploy"
+  },
+  "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "^3.971.0",
+    "@aws-sdk/client-dynamodb": "^3.971.0",
+    "@aws-sdk/client-s3": "^3.971.0",
+    "@aws-sdk/client-secrets-manager": "^3.971.0",
+    "@aws-sdk/lib-dynamodb": "^3.971.0",
+    "date-fns": "^3.0.0",
+    "date-fns-tz": "^3.0.0",
+    "sharp": "^0.34.5"
+  },
+  "devDependencies": {
+    "@aws-sdk/credential-providers": "^3.972.0",
+    "@types/aws-lambda": "^8.10.145",
+    "@types/node": "^20.10.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "archiver": "^7.0.1",
+    "eslint": "^8.54.0",
+    "jest": "^29.7.0",
+    "typescript": "^5.3.0"
+  }
+}
