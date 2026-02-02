@@ -6,15 +6,16 @@
 
 import { Handler } from 'aws-lambda';
 import { getWeeklyFinalized, getSystemConfig } from '../utils/dynamodb';
-import { getPreviousWeekId } from '../utils/weekId';
+import { getCurrentWeekId } from '../utils/weekId';
 import { getLineCredentials } from '../utils/secrets';
 import { pushMessage } from '../utils/line';
 
 export const handler: Handler = async () => {
   try {
-    // 【重要】月曜6:00実行 → 前週（月~日）の確定データを通知
-    // 例: 1/20(月)6:00実行 → 1/13~1/19週の確定スケジュールを通知
-    const weekId = getPreviousWeekId();
+    // 【重要】月曜6:00実行 → 今週（月~日）の確定データを通知
+    // 確定処理（月曜0:00）でgetCurrentWeekId()を使って確定しているため、同じIDを使う
+    // 例: 2/2(月)6:00実行 → 2/2~2/8週の確定スケジュールを通知
+    const weekId = getCurrentWeekId();
 
     console.log(`Starting notification for weekId: ${weekId}`);
 

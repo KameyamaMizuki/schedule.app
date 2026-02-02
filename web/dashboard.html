@@ -920,7 +920,7 @@
       const schedule = thisWeekSchedules.find(s => s.userId === userId);
       if (schedule) {
         schedule.slots[slotKey] = !schedule.slots[slotKey];
-        loadSelectedWeek();
+        loadSelectedWeek(true);
       }
     }
 
@@ -964,11 +964,12 @@
       loadSelectedWeek();
     }
 
-    async function loadSelectedWeek() {
+    async function loadSelectedWeek(skipFetch) {
       const selectedWeekId = thisWeekSelectedWeekId || getCalendarWeekId();
       const display = document.getElementById('finalizedScheduleDisplay');
 
       try {
+        if (!skipFetch) {
         thisWeekSchedules = [];
         const response = await fetch(`${API_BASE_URL}/schedule/week/${selectedWeekId}`);
         if (response.ok) {
@@ -1007,6 +1008,7 @@
             });
           }
         }
+        } // end skipFetch
         const weekSchedules = thisWeekSchedules;
 
         let html = '<div class="finalized-schedule">';
@@ -1170,7 +1172,7 @@
       const schedule = nextWeekSchedules.find(s => s.userId === userId);
       if (schedule) {
         schedule.slots[slotKey] = !schedule.slots[slotKey];
-        loadNextWeekSchedule();
+        loadNextWeekSchedule(true);
       }
     }
 
@@ -1214,9 +1216,10 @@
       loadNextWeekSchedule();
     }
 
-    async function loadNextWeekSchedule() {
+    async function loadNextWeekSchedule(skipFetch) {
       const display = document.getElementById('nextWeekScheduleDisplay');
       try {
+        if (!skipFetch) {
         nextWeekSchedules = [];
         const response = await fetch(`${API_BASE_URL}/schedule/week/${nextWeekSelectedWeekId}`);
         if (response.ok) {
@@ -1240,6 +1243,7 @@
             nextWeekSchedules.push({ userId: member.userId, displayName: member.displayName, slots: {}, notes: {} });
           }
         }
+        } // end skipFetch
         const weekSchedules = nextWeekSchedules;
 
         let html = '<div class="finalized-schedule">';
@@ -2364,8 +2368,28 @@
       sad: ['images/dog/sad/IMG_3720.webp','images/dog/sad/IMG_3721.webp']
     };
 
-    // オレの一言リスト
-    const homeHitokotoList = [
+    // DynamoDBから追加された画像を読み込み
+    async function loadChirolImagesFromDB() {
+      try {
+        const res = await fetch(`${API_BASE_URL}/chirol/images`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.images && data.images.length > 0) {
+            for (const img of data.images) {
+              const tag = img.tag || 'normal';
+              if (homeDogImages[tag]) {
+                homeDogImages[tag].push(img.url);
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Failed to load chirol images from DB:', e);
+      }
+    }
+
+    // オレの一言リスト（デフォルト + DynamoDBから取得分）
+    let homeHitokotoList = [
       'オレはチロル！好きなことはクン活だ！',
       '食べたいものは変わるけど…大目に見ろよ！',
       'みんなの笑顔が大好きなんだぜ！',
@@ -2374,6 +2398,22 @@
       '広島出身、東京在住だ！すげーだろ！',
       'ささみと芋、イチゴが最高なんだぞ～'
     ];
+
+    // DynamoDBから追加された一言を読み込み
+    async function loadHitokotoFromDB() {
+      try {
+        const res = await fetch(`${API_BASE_URL}/chirol/hitokoto`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.hitokotoList && data.hitokotoList.length > 0) {
+            const dbTexts = data.hitokotoList.map(h => h.text);
+            homeHitokotoList = [...homeHitokotoList, ...dbTexts];
+          }
+        }
+      } catch (e) {
+        console.error('Failed to load hitokoto from DB:', e);
+      }
+    }
 
     // ホームタブ状態
     let homeState = 'menu';
@@ -2387,6 +2427,8 @@
       initHomeTimeSelectors();
       updateHomeTodayInfo();
       homeSetRandomDogImage('normal');
+      loadHitokotoFromDB();
+      loadChirolImagesFromDB();
     }
 
     function initHomeTimeSelectors() {
@@ -2960,12 +3002,18 @@
       document.getElementById('homeProgressContainer').classList.add('active');
 
       try {
-        const res = await fetch(`${API_BASE_URL}/chirol/hitokoto`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text })
-        });
+        const [res] = await Promise.all([
+          fetch(`${API_BASE_URL}/chirol/hitokoto`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text })
+          }),
+          new Promise(r => setTimeout(r, 3000))
+        ]);
         if (!res.ok) throw new Error('保存失敗');
+
+        // 保存成功 → 一言リストにも追加
+        homeHitokotoList.push(text);
 
         homeState = 'chirol_done';
         document.getElementById('homeProgressContainer').classList.remove('active');
@@ -3182,15 +3230,24 @@
       document.getElementById('homeProgressContainer').classList.add('active');
 
       try {
-        const res = await fetch(`${API_BASE_URL}/chirol/images`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            imageData: chirolCroppedImageData,
-            tag: chirolSelectedTag
-          })
-        });
+        const [res] = await Promise.all([
+          fetch(`${API_BASE_URL}/chirol/images`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              imageData: chirolCroppedImageData,
+              tag: chirolSelectedTag
+            })
+          }),
+          new Promise(r => setTimeout(r, 3000))
+        ]);
         if (!res.ok) throw new Error('アップロード失敗');
+
+        // アップロード成功 → 画像リストにも追加
+        const resData = await res.json();
+        if (resData.url && chirolSelectedTag && homeDogImages[chirolSelectedTag]) {
+          homeDogImages[chirolSelectedTag].push(resData.url);
+        }
 
         homeState = 'chirol_done';
         document.getElementById('homeProgressContainer').classList.remove('active');

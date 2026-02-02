@@ -16,15 +16,3 @@ export function getDashboardUrl(weekId?: string): string {
     : `${S3_BASE_URL}/dashboard.html`;
 }
 
-/**
- * 入力ページURL生成
- */
-export function getInputUrl(weekId?: string, userId?: string, displayName?: string): string {
-  const params = new URLSearchParams();
-  if (weekId) params.append('weekId', weekId);
-  if (userId) params.append('userId', userId);
-  if (displayName) params.append('displayName', displayName);
-
-  const queryString = params.toString();
-  return queryString ? `${S3_BASE_URL}/index.html?${queryString}` : `${S3_BASE_URL}/index.html`;
-}

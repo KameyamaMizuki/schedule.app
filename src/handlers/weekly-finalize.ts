@@ -12,7 +12,7 @@ import {
   getUserPoints,
   updateUserPoints
 } from '../utils/dynamodb';
-import { generateNextWeekId, getPreviousWeekId, getWeekInfo, getCurrentWeekId } from '../utils/weekId';
+import { generateNextWeekId, getWeekInfo, getCurrentWeekId } from '../utils/weekId';
 import { calculateAllPoints } from '../utils/points';
 import { buildFinalizedSchedule } from '../utils/scheduleText';
 import { getDashboardUrl } from '../utils/constants';

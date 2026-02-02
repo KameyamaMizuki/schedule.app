@@ -1,17 +1,15 @@
 # CloudFormation package時に除外するファイル
 src/
 web/
+scripts/
 .git/
 .gitignore
 .claude/
+.aws-sam/
+.vscode/
+node_modules/
 *.md
-*.json
-!package.json
-*.yaml
-!template.yaml
 *.zip
 *.tar.gz
-*.sh
-test*
-create-test-history.js
-insert-test-data.sh
+*.log
+nul
